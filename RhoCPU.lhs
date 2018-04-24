@@ -35,7 +35,7 @@ First we're just going to import a bunch of stuff.
 -- and to automatically write code to fully evaluate writer state outputs.
 {-# LANGUAGE DeriveFunctor, DeriveGeneric #-}
 
-module CPU where
+module RhoCPU where
 
 -- CLaSH-provided hardware stuff
 import CLaSH.Sized.Unsigned (Unsigned)
@@ -78,7 +78,7 @@ data Register = Register (Index 16) deriving Show
 Some wrapper types, as described in part 1:
 
 \begin{code}
-data RAMType = DataRAM | CodeRAM | ContRAM
+data RAMType = DataRAM | CodeRAM | ContRAM | PoolRAM
 newtype Ptr (ram :: RAMType) = Ptr (Unsigned 64) deriving (Show)
 newtype Word = Word (Unsigned 64) deriving Show
 newtype Output = Output (Unsigned 64) deriving Show
@@ -208,7 +208,10 @@ decodeInstruction (Word val) = case tag of
     6 -> Jmp    a
     7 -> JmpZ   a b
     8 -> Out    a
-    9 -> Halt
+    9 -> Get    a b
+    10 -> Put   a b
+    11 -> Eval  a
+    12 -> Halt
     where
     tag = slice Nat.d63 Nat.d60 val
     a   = decodeReg $ slice Nat.d59 Nat.d56 val
@@ -336,6 +339,9 @@ data ExecuteState
     | E_ReadRAM Register
     | E_Nop
     | E_Out (Unsigned 64)
+    | E_Get Register Register
+    | E_Put Register Register
+    | E_Eval Register
     | E_Halt
 
 data WtoE = W_E_Write (Maybe CompletedWrite) | W_E_Halt
@@ -364,7 +370,10 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
             Jmp dest    -> (E_D_Jump (Ptr dest), E_Nop)
             JmpZ r dest -> (if r == 0 then E_D_Jump (Ptr dest) else E_D_None, E_Nop)
             Out v       -> (E_D_None, E_Out v)
-            Halt        -> (E_D_None, E_Halt)
+            Get a b     -> (E_D_None, E_Halt) -- These are Placeholders
+            Put a b     -> (E_D_None, E_Halt) -- These are placeholders
+            Eval a      -> (E_D_None, E_Halt) -- These are placeholders
+            Halt        -> (E_D_None, E_Halt) -- Modify this to grab the next process in the process pool, or halt if it's empty
     request = case decodedInstr of
         Just (Load _ ptr) -> Read (Ptr ptr)
         Just (Store v ptr) -> Write (Ptr ptr) (Word v)
@@ -382,6 +391,9 @@ data IsHalted = IsHalted | NotHalted
 data WriteState
     = W_Nop
     | W_Out (Unsigned 64)
+    | W_Get (Index 16) (Index 16)
+    | W_Put (Index 16) (Index 16)
+    | W_Eval (Index 16) 
     | W_Halt deriving (Generic, Show, Eq)
 
 instance NFData WriteState
@@ -397,6 +409,9 @@ writerUpdate NotHalted executeState Unused fromRAM = (state', wToE, Unused)
     state' = case executeState of
         E_Out v -> W_Out v
         E_Halt  -> W_Halt
+        E_Get (Register v) (Register p) -> W_Get v p
+        E_Put (Register v) (Register p) -> W_Put v p
+        E_Eval (Register v) -> W_Eval v
         _       -> W_Nop
     wToE = case executeState of
         E_Store r v -> W_E_Write (Just (CompletedWrite r v))
