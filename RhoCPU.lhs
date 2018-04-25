@@ -266,6 +266,7 @@ connect ram blockB blockC inputs = (b2a, c2d, c2ram)
 
 
 data CodeRAMRequest = CodeRAMStall | CodeRAMRead (Ptr CodeRAM)
+data PoolRAMRequest = PoolRAMStall | PoolRAMRead (Ptr PoolRAM)
 
 fetcher :: (Signal Unused, Signal DtoF, Signal Unused) 
         -> (Signal Unused, Signal Validity, Signal CodeRAMRequest)
@@ -378,6 +379,7 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
         Just (Load _ ptr) -> Read (Ptr ptr)
         Just (Store v ptr) -> Write (Ptr ptr) (Word v)
         _ -> Read (Ptr 0) -- Could also have a special constructor for "do nothing" if we wanted
+        
 -- The write stage uses the entire execute state
 executerSplitter :: ExecuteState -> (Unused, ExecuteState)
 executerSplitter s = (Unused, s)
@@ -441,6 +443,16 @@ codeRAM contents input = output
     stall CodeRAMStall = True
     stall (CodeRAMRead _) = False
 
+processPool :: Vec n Word -> Signal PoolRAMRequest -> Signal Word
+processPool contents input = output
+    where
+    output = stallable ram (stall <$> input)
+    ram = blockRam contents (readAddr <$> input) (signal Nothing)
+    readAddr PoolRAMStall = 0
+    readAddr (PoolRAMRead (Ptr ptr)) = ptr
+    stall PoolRAMStall = True
+    stall (PoolRAMRead _) = False    
+
 dataRAM :: Vec n Word -> Signal DataRAMRequest -> Signal Word
 dataRAM contents input = output
     where
@@ -449,6 +461,20 @@ dataRAM contents input = output
     read (Write _ _)      = 0
     write (Read _)          = Nothing
     write (Write (Ptr p) v) = Just (p,v)
+
+-- processPoolDataPair :: (Vec m Word,Vec n Word) -> Signal (DataRAMRequest,PoolRAMRequest) -> Signal (Word,Word)
+-- processPoolDataPair (poolContents,dataContents) input = output
+--     where
+--     output = stallable ram (stallAndWrite <$> input)
+--     ram = blockRam (poolContents,dataContents) (readProcDataAddrPair <$> input) (signal Nothing)
+--     readProcDataAddrPair (PoolRAMStall,(Read (Ptr ptr))) = (0,ptr)
+--     readProcDataAddrPair ((PoolRAMRead (Ptr ptr1)),(Read (Ptr ptr2))) = (ptr1,ptr2)
+--     readProcDataAddrPair (PoolRAMStall,(Write _ _)) = (0,0)
+--     readProcDataAddrPair ((PoolRAMRead (Ptr ptr)),(Write _ _)) = (ptr,0) 
+--     stallAndWrite (PoolRAMStall,(Read _)) = (True,Nothing)
+--     stallAndWrite ((PoolRAMRead _),(Read _)) = (False,Nothing)
+--     stallAndWrite (PoolRAMStall,(Write (Ptr ptr) v)) = (True, (Just (ptr,v)))
+--     stallAndWrite ((PoolRAMRead _),(Write (Ptr ptr) v)) = (False, (Just (ptr,v)))
 
 noRAM :: Signal Unused -> Signal Unused
 noRAM x = x
@@ -461,6 +487,14 @@ allConnected code initialData = fetcher `f2d` decoder `d2e` executer `e2w` write
     f2d = connect (codeRAM code)
     d2e = connect noRAM
     e2w = connect (dataRAM initialData)
+
+-- This version wires in the process pool
+-- allConnected2 code initialData initialPool = 
+--   fetcher `f2d` decoder `d2e` executer `e2pp` processPool `e2w` writer
+--     where
+--     f2d = connect (codeRAM code)
+--     d2e = connect noRAM
+--     e2ppw = connect (processPoolDataPair initialPool initialData)
 
 cpu :: Vec n Word -> Vec m Word -> Signal WriteState
 cpu code initialData = output
@@ -509,9 +543,14 @@ program1
 codeRAM1 :: Vec 1024 Word
 codeRAM1 = fmap encodeInstruction program1 ++ repeat (Word 0)
 
+poolRAM1 :: Vec 8192 Word
+poolRAM1 = codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1
 
-defaultDataRAM :: Vec 2048 Word
-defaultDataRAM = repeat (Word 0)
+defaultDataRAMChunk :: Vec 2048 Word
+defaultDataRAMChunk = repeat (Word 0)
+
+defaultDataRAM :: Vec 8192 Word
+defaultDataRAM = defaultDataRAMChunk ++ defaultDataRAMChunk ++ defaultDataRAMChunk ++ defaultDataRAMChunk
 
 \end{code}
 
