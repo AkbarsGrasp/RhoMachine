@@ -40,7 +40,7 @@ module RhoCPU where
 -- CLaSH-provided hardware stuff
 import CLaSH.Sized.Unsigned (Unsigned)
 import CLaSH.Sized.Vector (Vec((:>), Nil), 
-        (!!), replace, repeat, (++))
+        (!!), replace, repeat, (++), zip)
 import CLaSH.Class.Resize (zeroExtend)
 import CLaSH.Sized.BitVector (BitVector, (++#), Bit)
 import CLaSH.Class.BitPack (pack, unpack)
@@ -54,6 +54,8 @@ import CLaSH.Prelude.BlockRam (blockRam)
 import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
     ($), (.), filter, take, fmap, mapM_, Functor,
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
+
+--import Data.Vector (DVec)
 
 -- Used to make sure that something is fully evaluated.
 -- Good for making sure that our circuit 
@@ -433,6 +435,14 @@ stallable signal stall = output
     delayed = register undefined output
     output = mux stalled delayed signal
 
+-- stallable2 :: Signal a -> Signal (Bool,Maybe (Unsigned 64, Word)) -> Signal a
+-- stallable2 signal stall2 = output
+--     where
+--     stall = stall2 <$> (\(s,_) -> s)
+--     stalled = register False stall
+--     delayed = register undefined output
+--     output = mux stalled delayed signal    
+
 codeRAM :: Vec n Word -> Signal CodeRAMRequest -> Signal Word
 codeRAM contents input = output
     where
@@ -462,11 +472,11 @@ dataRAM contents input = output
     write (Read _)          = Nothing
     write (Write (Ptr p) v) = Just (p,v)
 
--- processPoolDataPair :: (Vec m Word,Vec n Word) -> Signal (DataRAMRequest,PoolRAMRequest) -> Signal (Word,Word)
--- processPoolDataPair (poolContents,dataContents) input = output
+-- processPoolDataPair :: Vec m Word -> Vec n Word -> Signal (PoolRAMRequest,DataRAMRequest) -> Signal (Word,Word)
+-- processPoolDataPair poolContents dataContents input = output
 --     where
 --     output = stallable ram (stallAndWrite <$> input)
---     ram = blockRam (poolContents,dataContents) (readProcDataAddrPair <$> input) (signal Nothing)
+--     ram = blockRam (zip poolContents dataContents) (readProcDataAddrPair <$> input) (signal Nothing)
 --     readProcDataAddrPair (PoolRAMStall,(Read (Ptr ptr))) = (0,ptr)
 --     readProcDataAddrPair ((PoolRAMRead (Ptr ptr1)),(Read (Ptr ptr2))) = (ptr1,ptr2)
 --     readProcDataAddrPair (PoolRAMStall,(Write _ _)) = (0,0)
