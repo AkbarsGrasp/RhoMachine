@@ -438,10 +438,11 @@ stallable signal stall = output
 -- stallable2 :: Signal a -> Signal (Bool,Maybe (Unsigned 64, Word)) -> Signal a
 -- stallable2 signal stall2 = output
 --     where
---     stall = stall2 <$> (\(s,_) -> s)
+--     stall = fmap (\(s,_) -> s) stall2
 --     stalled = register False stall
 --     delayed = register undefined output
---     output = mux stalled delayed signal    
+--     output = mux stalled delayed signal
+    
 
 codeRAM :: Vec n Word -> Signal CodeRAMRequest -> Signal Word
 codeRAM contents input = output
@@ -453,15 +454,15 @@ codeRAM contents input = output
     stall CodeRAMStall = True
     stall (CodeRAMRead _) = False
 
-processPool :: Vec n Word -> Signal PoolRAMRequest -> Signal Word
-processPool contents input = output
-    where
-    output = stallable ram (stall <$> input)
-    ram = blockRam contents (readAddr <$> input) (signal Nothing)
-    readAddr PoolRAMStall = 0
-    readAddr (PoolRAMRead (Ptr ptr)) = ptr
-    stall PoolRAMStall = True
-    stall (PoolRAMRead _) = False    
+-- processPool :: Vec n Word -> Signal PoolRAMRequest -> Signal Word
+-- processPool contents input = output
+--     where
+--     output = stallable ram (stall <$> input)
+--     ram = blockRam contents (readAddr <$> input) (signal Nothing)
+--     readAddr PoolRAMStall = 0
+--     readAddr (PoolRAMRead (Ptr ptr)) = ptr
+--     stall PoolRAMStall = True
+--     stall (PoolRAMRead _) = False    
 
 dataRAM :: Vec n Word -> Signal DataRAMRequest -> Signal Word
 dataRAM contents input = output
@@ -472,10 +473,10 @@ dataRAM contents input = output
     write (Read _)          = Nothing
     write (Write (Ptr p) v) = Just (p,v)
 
--- processPoolDataPair :: Vec m Word -> Vec n Word -> Signal (PoolRAMRequest,DataRAMRequest) -> Signal (Word,Word)
+-- processPoolDataPair :: Vec n Word -> Vec n Word -> Signal (PoolRAMRequest,DataRAMRequest) -> Signal (Word,Word)
 -- processPoolDataPair poolContents dataContents input = output
 --     where
---     output = stallable ram (stallAndWrite <$> input)
+--     output = stallable2 ram (stallAndWrite <$> input)
 --     ram = blockRam (zip poolContents dataContents) (readProcDataAddrPair <$> input) (signal Nothing)
 --     readProcDataAddrPair (PoolRAMStall,(Read (Ptr ptr))) = (0,ptr)
 --     readProcDataAddrPair ((PoolRAMRead (Ptr ptr1)),(Read (Ptr ptr2))) = (ptr1,ptr2)
@@ -553,14 +554,14 @@ program1
 codeRAM1 :: Vec 1024 Word
 codeRAM1 = fmap encodeInstruction program1 ++ repeat (Word 0)
 
-poolRAM1 :: Vec 8192 Word
-poolRAM1 = codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1
+-- poolRAM1 :: Vec 8192 Word
+-- poolRAM1 = codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1
 
 defaultDataRAMChunk :: Vec 2048 Word
 defaultDataRAMChunk = repeat (Word 0)
 
-defaultDataRAM :: Vec 8192 Word
-defaultDataRAM = defaultDataRAMChunk ++ defaultDataRAMChunk ++ defaultDataRAMChunk ++ defaultDataRAMChunk
+defaultDataRAM :: Vec 16384 Word
+defaultDataRAM = defaultDataRAMChunk ++ defaultDataRAMChunk ++ defaultDataRAMChunk ++ defaultDataRAMChunk ++ defaultDataRAMChunk ++ defaultDataRAMChunk ++ defaultDataRAMChunk ++ defaultDataRAMChunk
 
 \end{code}
 
