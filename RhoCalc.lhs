@@ -108,6 +108,8 @@ procToIntegerList (Reflect (Eval (Code px))) = tag ++ nx
   where tag = (discriminator (Reflect (Eval (Code px))))
         nx  = nopen ++ (procToIntegerList px) ++ nclose
 
+-- need to write function to get contents between 'parens'
+
 -- integerListToProc [] = Reflect Stop
 -- integerListToProc (0:0:0:0:0) = Reflect Stop
 -- integerListToProc (0:0:0:1:l) = Reflect (Input nx ny q)
