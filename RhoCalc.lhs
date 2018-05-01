@@ -126,6 +126,26 @@ unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
                  then (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n - 1) (if (n == 1) then acc else (acc ++ [a,b,c,d])))
                  else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc ++ [a,b,c,d])))
 
+-- getSubject l = 
+--  case (unquote l nopen nclose) of
+--    Just (contents, remainder) -> (case (integerListToProc contents) of
+--      Just p -> Just (p, remainder)
+--      Nothing -> Nothing)
+--    Nothing -> Nothing
+   
+-- getObject l =
+--   case (unquote l nopen nclose) of
+--    Just (contents, remainder) -> (case (integerListToProc contents) of
+--      Just p -> Just (p, remainder)
+--      Nothing -> Nothing)
+--    Nothing -> Nothing
+-- getParLeft l =
+--   case (unquote l popen pclose) of
+--    Just (contents, remainder) -> (case (integerListToProc contents) of
+--      Just p -> Just (p, remainder)
+--      Nothing -> Nothing)
+--    Nothing -> Nothing
+
 -- integerListToProc [] = Reflect Stop
 -- integerListToProc (0:0:0:0:0) = Reflect Stop
 -- integerListToProc (0:0:0:1:l) = Reflect (Input nx ny q)
