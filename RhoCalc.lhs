@@ -70,7 +70,7 @@ pclose                                = [0,1,1,0]
 nopen                                 = [0,1,1,1]
 nclose                                = [1,0,0,0]
 
-procToIntegerList (Reflect Stop) = tag ++ [0]
+procToIntegerList (Reflect Stop) = tag
   where tag = (discriminator (Reflect Stop))
 procToIntegerList (Reflect (Input (Code px) (Code py) q)) = tag ++ nx ++ ny ++ qx
   where tag = (discriminator (Reflect (Input (Code px) (Code py) q)))
@@ -107,6 +107,24 @@ procToIntegerList (Reflect (Par p q)) = tag ++ px ++ qx
 procToIntegerList (Reflect (Eval (Code px))) = tag ++ nx
   where tag = (discriminator (Reflect (Eval (Code px))))
         nx  = nopen ++ (procToIntegerList px) ++ nclose
+
+--        bit string   open paren   close paren   contents & remainder of the string
+unquote :: [Integer] -> [Integer] -> [Integer] -> Maybe ([Integer], [Integer])
+unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
+  if ([a,b,c,d] == [oa,ob,oc,od])
+  then 
+    (h l [oa,ob,oc,od] [ca,cb,cc,cd] 1 [])
+  else Nothing
+  where h [] _ _ n acc                                  =
+          (if (n > 0) then Nothing else Just (acc,[]))
+        h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) 0 acc = Just (acc,(a:b:c:d:l))
+        h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) n acc =
+          (if ([a,b,c,d] == [oa,ob,oc,od])
+            then
+              (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n + 1) (acc ++ [a,b,c,d]))
+            else if ([a,b,c,d] == [oa,ob,oc,od])
+                 then (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n - 1) (if (n == 1) then acc else (acc ++ [a,b,c,d])))
+                 else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc ++ [a,b,c,d])))
 
 -- integerListToProc [] = Reflect Stop
 -- integerListToProc (0:0:0:0:0) = Reflect Stop

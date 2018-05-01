@@ -719,3 +719,22 @@ You should start seeing CPU output!
 
 In part 2, we're going to cover more realistic RAM behavior and CPU pipelining, which will bring us closer to modern processors.
 
+\begin{code}
+data Process x = Stop | Rcv x x (Process x) | Snd x (Process x) | Par (Process x) (Process x) | Ev x deriving Show
+
+data Name p = Address (Unsigned 64) | Code p deriving Show
+
+data RhoProcess = Process (Name RhoProcess) deriving Show
+
+procToBinaryArray :: (Process x) -> [(Unsigned 64)]
+nameToBinaryArray :: (Name p) -> [(Unsigned 64)]
+
+procToBinaryArray Stop = [0]
+procToBinaryArray (Rcv x y p) = (nameToBinaryArray x) ++ (nameToBinaryArray y) ++ (procToBinaryArray p)
+procToBinaryArray (Snd x p) = (nameToBinaryArray x) ++ (procToBinaryArray p)
+procToBinaryArray (Par p q) = (procToBinaryArray p) ++ (procToBinaryArray q)
+procToBinaryArray (Ev x) = (nameToBinaryArray x)
+
+nameToBinaryArray (Address a) = [a]
+nameToBinaryArray (Code p) = [1 0 1 0] ++ (procToBinaryArray p)
+\end{code}
