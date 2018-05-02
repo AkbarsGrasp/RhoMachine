@@ -50,13 +50,13 @@ pclose :: [Integer]
 nopen :: [Integer]
 nclose :: [Integer]
 
--- integerListToProc :: [Integer] -> Maybe RhoProcess
--- getSubject :: [Integer] -> Maybe (RhoProcess,[Integer])
--- getObject :: [Integer] -> Maybe (RhoProcess,[Integer])
--- getContinuation :: [Integer] -> Maybe RhoProcess
--- getTransmission :: [Integer] -> Maybe RhoProcess
--- getParLeft :: [Integer] -> Maybe (RhoProcess,[Integer])
--- getParRight :: [Integer] -> Maybe RhoProcess
+integerListToProc :: [Integer] -> Maybe RhoProcess
+getSubject :: [Integer] -> Maybe (RhoProcess,[Integer])
+getObject :: [Integer] -> Maybe (RhoProcess,[Integer])
+getContinuation :: [Integer] -> Maybe RhoProcess
+getTransmission :: [Integer] -> Maybe RhoProcess
+getParLeft :: [Integer] -> Maybe (RhoProcess,[Integer])
+getParRight :: [Integer] -> Maybe RhoProcess
 -- getNameCenter :: [Integer] -> Maybe RhoProcess
 
 discriminator (Reflect Stop)          = [0,0,0,0]
@@ -126,25 +126,48 @@ unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
                  then (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n - 1) (if (n == 1) then acc else (acc ++ [a,b,c,d])))
                  else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc ++ [a,b,c,d])))
 
--- getSubject l = 
---  case (unquote l nopen nclose) of
---    Just (contents, remainder) -> (case (integerListToProc contents) of
---      Just p -> Just (p, remainder)
---      Nothing -> Nothing)
---    Nothing -> Nothing
+getSubject l = 
+ case (unquote l nopen nclose) of
+   Just (contents, remainder) -> (case (integerListToProc contents) of
+     Just p -> Just (p, remainder)
+     Nothing -> Nothing)
+   Nothing -> Nothing
    
--- getObject l =
---   case (unquote l nopen nclose) of
---    Just (contents, remainder) -> (case (integerListToProc contents) of
---      Just p -> Just (p, remainder)
---      Nothing -> Nothing)
---    Nothing -> Nothing
--- getParLeft l =
---   case (unquote l popen pclose) of
---    Just (contents, remainder) -> (case (integerListToProc contents) of
---      Just p -> Just (p, remainder)
---      Nothing -> Nothing)
---    Nothing -> Nothing
+getObject l =
+  case (unquote l nopen nclose) of
+   Just (contents, remainder) -> (case (integerListToProc contents) of
+     Just p -> Just (p, remainder)
+     Nothing -> Nothing)
+   Nothing -> Nothing
+
+getParLeft l = 
+  case (unquote l popen pclose) of
+   Just (contents, remainder) -> (case (integerListToProc contents) of
+     Just p -> Just (p, remainder)
+     Nothing -> Nothing)
+   Nothing -> Nothing
+
+getContinuation l = 
+  case (unquote l popen pclose) of
+   Just (contents, []) -> (integerListToProc contents) of
+   _ -> Nothing
+
+getTransmission l = 
+  case (unquote l popen pclose) of
+   Just (contents, []) -> (integerListToProc contents) of
+   _ -> Nothing
+
+getParRight l = 
+  case (unquote l popen pclose) of
+   Just (contents, []) -> (integerListToProc contents) of
+   _ -> Nothing
+
+getNameCenter l = 
+  case (unquote l nopen nclose) of
+   Just (contents, []) -> (integerListToProc contents) of
+   _ -> Nothing   
+
+integerListToProc _ = Nothing
 
 -- integerListToProc [] = Reflect Stop
 -- integerListToProc (0:0:0:0:0) = Reflect Stop
