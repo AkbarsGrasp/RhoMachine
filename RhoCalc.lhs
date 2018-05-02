@@ -57,7 +57,7 @@ getContinuation :: [Integer] -> Maybe RhoProcess
 getTransmission :: [Integer] -> Maybe RhoProcess
 getParLeft :: [Integer] -> Maybe (RhoProcess,[Integer])
 getParRight :: [Integer] -> Maybe RhoProcess
--- getNameCenter :: [Integer] -> Maybe RhoProcess
+getNameCenter :: [Integer] -> Maybe RhoProcess
 
 discriminator (Reflect Stop)          = [0,0,0,0]
 discriminator (Reflect (Input _ _ _)) = [0,0,0,1]
@@ -149,41 +149,51 @@ getParLeft l =
 
 getContinuation l = 
   case (unquote l popen pclose) of
-   Just (contents, []) -> (integerListToProc contents) of
+   Just (contents, []) -> (integerListToProc contents)
    _ -> Nothing
 
 getTransmission l = 
   case (unquote l popen pclose) of
-   Just (contents, []) -> (integerListToProc contents) of
+   Just (contents, []) -> (integerListToProc contents)
    _ -> Nothing
 
 getParRight l = 
   case (unquote l popen pclose) of
-   Just (contents, []) -> (integerListToProc contents) of
+   Just (contents, []) -> (integerListToProc contents)
    _ -> Nothing
 
 getNameCenter l = 
   case (unquote l nopen nclose) of
-   Just (contents, []) -> (integerListToProc contents) of
+   Just (contents, []) -> (integerListToProc contents)
    _ -> Nothing   
 
-integerListToProc _ = Nothing
+-- integerListToProc _ = Nothing
 
-integerListToProc [] = Reflect Stop
-integerListToProc (0:0:0:0:0) = Reflect Stop
-integerListToProc (0:0:0:1:l) = Reflect (Input nx ny q)
-  where (nx,ny)  = ((Code px),(Code py))
-        (px,l')  = (getSubject l)
-        (py,l'') = (getObject l')
-        q        = (integerListToProc (getContinuation l'))
-integerListToProc (0:0:1:0:l) = Reflect (Output nx q)
-  where nx      = (Code px)
-        (px,l') = (getSubject l)
-        q       = (integerListToProc (getTransmission l'))
-integerListToProc (0:0:1:1:l) = Reflect (Par p q)
-  where (p,q)   = ((integerListToProc pl),(integerListToProc pr))
-        (pl,l') = (getParLeft l)
-        pr      = (getParRight l')
-integerListToProc (0:1:0:0:l) = Reflect (Eval nx)
-  where nx = (Code (getNameCenter l)) 
+integerListToProc [] = Just (Reflect Stop)
+integerListToProc (0:0:0:0:[]) = Just (Reflect Stop)
+integerListToProc (0:0:0:1:l) = 
+  case (getSubject l) of
+    Just (px,l') -> (case (getObject l') of
+      Just (py,l'') -> (case (getContinuation l'') of        
+        Just (Reflect q) -> Just (Reflect (Input (Code px) (Code py) q))
+        Nothing -> Nothing)
+      Nothing -> Nothing)
+    Nothing -> Nothing      
+integerListToProc (0:0:1:0:l) =
+  case (getSubject l) of 
+    Just (px,l') -> (case (getTransmission l') of
+      Just (Reflect q) -> Just (Reflect (Output (Code px) q))
+      Nothing -> Nothing)
+    Nothing -> Nothing
+integerListToProc (0:0:1:1:l) =
+  case (getParLeft l) of 
+    Just (pl,l') -> (case (getParRight l') of 
+      Just pr -> (case (pl,pr) of
+        ((Reflect ql),(Reflect qr)) -> Just (Reflect (Par ql qr)))
+      Nothing -> Nothing)
+    Nothing -> Nothing
+integerListToProc (0:1:0:0:l) = 
+  case (getNameCenter l) of
+    Just q -> Just (Reflect (Eval (Code q)))
+    Nothing -> Nothing
 \end{code}
