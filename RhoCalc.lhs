@@ -8,7 +8,22 @@ module RhoCalc(
   ,Process
   ,RhoProcess
   ,procToIntegerList
+  ,integerListToProc
   ,discriminator
+  ,popen
+  ,pclose
+  ,nopen
+  ,nclose
+  ,unquote
+  ,getNextEntity
+  ,getLastEntity
+  ,getSubject
+  ,getObject
+  ,getParLeft
+  ,getParRight
+  ,getContinuation
+  ,getTransmission
+  ,getNameCenter
   )
   where
 import Debug.Trace
