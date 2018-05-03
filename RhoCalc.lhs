@@ -199,4 +199,9 @@ integerListToProc (0:1:0:0:l) =
   case (getNameCenter l) of
     Just q -> Just (Reflect (Eval (Code q)))
     Nothing -> Nothing
+
+roundtrip :: RhoProcess -> Bool
+roundtrip p = case (integerListToProc (procToIntegerList p)) of
+  Just q -> p == q
+  Nothing -> False
 \end{code}
