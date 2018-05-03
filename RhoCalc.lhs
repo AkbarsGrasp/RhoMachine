@@ -12,6 +12,9 @@ module RhoCalc(
   ,discriminator
   )
   where
+import Debug.Trace
+tracey :: Show a => [Char] -> a -> a
+tracey name x = trace (name ++ ": " ++ show x) x
 
 class Nominal n where
   code :: p -> n p
@@ -112,17 +115,17 @@ procToIntegerList (Reflect (Eval (Code px))) = tag ++ nx
 unquote :: [Integer] -> [Integer] -> [Integer] -> Maybe ([Integer], [Integer])
 unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
   if ([a,b,c,d] == [oa,ob,oc,od])
-  then 
+  then
     (h l [oa,ob,oc,od] [ca,cb,cc,cd] 1 [])
   else Nothing
-  where h [] _ _ n acc                                  =
+  where h [] _ _ n acc                                        =
           (if (n > 0) then Nothing else Just (acc,[]))
         h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) 0 acc = Just (acc,(a:b:c:d:l))
         h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) n acc =
           (if ([a,b,c,d] == [oa,ob,oc,od])
             then
               (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n + 1) (acc ++ [a,b,c,d]))
-            else if ([a,b,c,d] == [oa,ob,oc,od])
+            else if ([a,b,c,d] == [ca,cb,cc,cd])
                  then (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n - 1) (if (n == 1) then acc else (acc ++ [a,b,c,d])))
                  else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc ++ [a,b,c,d])))
 
