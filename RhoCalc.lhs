@@ -1,4 +1,3 @@
-
 \begin{code}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FunctionalDependencies, AllowAmbiguousTypes #-}
 
@@ -9,7 +8,22 @@ module RhoCalc(
   ,Process
   ,RhoProcess
   ,procToIntegerList
+  ,integerListToProc
   ,discriminator
+  ,popen
+  ,pclose
+  ,nopen
+  ,nclose
+  ,unquote
+  ,getNextEntity
+  ,getLastEntity
+  ,getSubject
+  ,getObject
+  ,getParLeft
+  ,getParRight
+  ,getContinuation
+  ,getTransmission
+  ,getNameCenter
   )
   where
 import Debug.Trace
@@ -53,15 +67,6 @@ pclose :: [Integer]
 nopen :: [Integer]
 nclose :: [Integer]
 
-integerListToProc :: [Integer] -> Maybe RhoProcess
-getSubject :: [Integer] -> Maybe (RhoProcess,[Integer])
-getObject :: [Integer] -> Maybe (RhoProcess,[Integer])
-getContinuation :: [Integer] -> Maybe RhoProcess
-getTransmission :: [Integer] -> Maybe RhoProcess
-getParLeft :: [Integer] -> Maybe (RhoProcess,[Integer])
-getParRight :: [Integer] -> Maybe RhoProcess
-getNameCenter :: [Integer] -> Maybe RhoProcess
-
 discriminator (Reflect Stop)          = [0,0,0,0]
 discriminator (Reflect (Input _ _ _)) = [0,0,0,1]
 discriminator (Reflect (Output _ _))  = [0,0,1,0]
@@ -73,6 +78,11 @@ pclose                                = [0,1,1,0]
 nopen                                 = [0,1,1,1]
 nclose                                = [1,0,0,0]
 
+
+-- Known issues: in order to provide name equality as bit compare we ...
+-- must produce bit vectors for addresses
+-- must use DeBruijn indices for bound variables
+-- must provide a canonical order for pars
 procToIntegerList (Reflect Stop) = tag
   where tag = (discriminator (Reflect Stop))
 procToIntegerList (Reflect (Input (Code px) (Code py) q)) = tag ++ nx ++ ny ++ qx
@@ -129,48 +139,44 @@ unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
                  then (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n - 1) (if (n == 1) then acc else (acc ++ [a,b,c,d])))
                  else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc ++ [a,b,c,d])))
 
-getSubject l = 
- case (unquote l nopen nclose) of
+integerListToProc :: [Integer] -> Maybe RhoProcess
+getSubject :: [Integer] -> Maybe (RhoProcess,[Integer])
+getObject :: [Integer] -> Maybe (RhoProcess,[Integer])
+getContinuation :: [Integer] -> Maybe RhoProcess
+getTransmission :: [Integer] -> Maybe RhoProcess
+getParLeft :: [Integer] -> Maybe (RhoProcess,[Integer])
+getParRight :: [Integer] -> Maybe RhoProcess
+getNameCenter :: [Integer] -> Maybe RhoProcess
+
+-- todo: replace with do-blocks
+
+getNextEntity l open close =
+  case (unquote l open close) of
    Just (contents, remainder) -> (case (integerListToProc contents) of
      Just p -> Just (p, remainder)
      Nothing -> Nothing)
    Nothing -> Nothing
+
+getLastEntity l open close =
+  case (unquote l open close) of
+   Just (contents, []) -> (integerListToProc contents)
+   _ -> Nothing
+
+getNextName l = getNextEntity l nopen nclose
+
+getSubject l = getNextName l  
    
-getObject l =
-  case (unquote l nopen nclose) of
-   Just (contents, remainder) -> (case (integerListToProc contents) of
-     Just p -> Just (p, remainder)
-     Nothing -> Nothing)
-   Nothing -> Nothing
+getObject l = getNextName l
 
-getParLeft l = 
-  case (unquote l popen pclose) of
-   Just (contents, remainder) -> (case (integerListToProc contents) of
-     Just p -> Just (p, remainder)
-     Nothing -> Nothing)
-   Nothing -> Nothing
+getParLeft l = getNextEntity l popen pclose
 
-getContinuation l = 
-  case (unquote l popen pclose) of
-   Just (contents, []) -> (integerListToProc contents)
-   _ -> Nothing
+getContinuation l = getLastEntity l popen pclose
 
-getTransmission l = 
-  case (unquote l popen pclose) of
-   Just (contents, []) -> (integerListToProc contents)
-   _ -> Nothing
+getTransmission l = getLastEntity l popen pclose
 
-getParRight l = 
-  case (unquote l popen pclose) of
-   Just (contents, []) -> (integerListToProc contents)
-   _ -> Nothing
+getParRight l = getLastEntity l popen pclose
 
-getNameCenter l = 
-  case (unquote l nopen nclose) of
-   Just (contents, []) -> (integerListToProc contents)
-   _ -> Nothing   
-
--- integerListToProc _ = Nothing
+getNameCenter l = getLastEntity l nopen nclose
 
 integerListToProc [] = Just (Reflect Stop)
 integerListToProc (0:0:0:0:[]) = Just (Reflect Stop)
