@@ -54,6 +54,7 @@ import CLaSH.Prelude.BlockRam (blockRam)
 import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
     ($), (.), filter, take, fmap, mapM_, Functor,
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
+import qualified Prelude as Plude (zip,unzip)
 
 --import Data.Vector (DVec)
 
@@ -472,6 +473,26 @@ dataRAM contents input = output
     read (Write _ _)      = 0
     write (Read _)          = Nothing
     write (Write (Ptr p) v) = Just (p,v)
+
+-- dataMultiRAM :: Vec n (Word, Word) -> Signal (DataRAMRequest,DataRAMRequest) -> Signal (Word, Word)
+-- dataMultiRAM contents input = output
+--   where
+--     output = blockRam contents r_input w_input
+--     (r_input,w_input) =  ((Plude.zip rl_input wl_input), (Plude.zip rr_input wr_input))
+--     ((rl_input,rr_input),(wl_input,wr_input)) =
+--       ((Plude.unzip (read <$> input)),
+--        (fmap (\x -> (case x of
+--            Nothing -> (Nothing,Nothing)
+--            Just (a, b) -> (Just a, Just b)))
+--           (write <$> input)))
+--     read ((Read (Ptr ptrl)),(Read (Ptr ptrr)))    = (ptrl,ptrr)
+--     read ((Read (Ptr ptr)),(Write _ _))         = (ptr,0)
+--     read ((Write _ _),(Read (Ptr ptr)))         = (0,ptr)        
+--     read ((Write _ _),(Write _ _))              = (0,0)
+--     write ((Read _),(Read _))                   = Nothing
+--     write ((Read _),(Write (Ptr p) v))          = (Just ((0,0),(p,v)))
+--     write ((Write (Ptr p) v),(Read _))          = (Just ((p,v),(0,0)))
+--     write ((Write (Ptr pl) vl),(Write (Ptr pr) vr)) = Just ((pl,vl),(pr,vr))
 
 -- processPoolDataPair :: Vec n Word -> Vec n Word -> Signal (PoolRAMRequest,DataRAMRequest) -> Signal (Word,Word)
 -- processPoolDataPair poolContents dataContents input = output
