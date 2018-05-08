@@ -106,7 +106,7 @@ data Instruction register
     | JmpZ register register
     | Out register
     | Put register register -- the first register points to the key, the second points to the value
-    | Get register register -- the first register points to the key, the second points to the continuation
+    | Get register Register register Register -- the first register points to the key, the second points to the continuation
     | Eval register -- This takes a register that points to a name, and turns the name into a process
     | Halt
     deriving (Show, Functor)
@@ -186,7 +186,7 @@ encodeInstruction instr = Word $ unpack $ case instr of
     Jmp      p -> tag 6 ++# encodeReg p                                 ++# 0
     JmpZ   z d -> tag 7 ++# encodeReg z ++# encodeReg d                 ++# 0
     Out      v -> tag 8 ++# encodeReg v                                 ++# 0
-    Get    v p -> tag 9 ++# encodeReg v ++# encodeReg p                 ++# 0
+    Get    v1 p1 v2 p2 -> tag 9 ++# encodeReg v1 ++# encodeReg p1 ++# encodeReg v2 ++# encodeReg p2 ++# 0
     Put    v p -> tag 10 ++# encodeReg v ++# encodeReg p                ++# 0
     Eval     v -> tag 11 ++# encodeReg v                                ++# 0
     Halt       -> tag 12                                                ++# 0
@@ -211,7 +211,7 @@ decodeInstruction (Word val) = case tag of
     6 -> Jmp    a
     7 -> JmpZ   a b
     8 -> Out    a
-    9 -> Get    a b
+    9 -> Get    a b c d
     10 -> Put   a b
     11 -> Eval  a
     12 -> Halt
@@ -220,6 +220,7 @@ decodeInstruction (Word val) = case tag of
     a   = decodeReg $ slice Nat.d59 Nat.d56 val
     b   = decodeReg $ slice Nat.d55 Nat.d52 val
     c   = decodeReg $ slice Nat.d51 Nat.d48 val
+    d   = decodeReg $ slice Nat.d47 Nat.d44 val    
     v   = unpack $ slice Nat.d55 Nat.d0  val
 
 decodeReg :: BitVector 4 -> Register
@@ -300,7 +301,7 @@ data DecodeState = DecodeState {
 
 data EtoDHazard = E_D_Jump (Ptr CodeRAM) | E_D_Stall | E_D_None
 
-data CompletedWrite = CompletedWrite Register (Unsigned 64)
+data CompletedWrite = Completed1Write Register (Unsigned 64) | Completed2Write Register (Unsigned 64) Register (Unsigned 64) 
 
 data EtoD = EtoD EtoDHazard (Maybe CompletedWrite)
 
@@ -315,7 +316,8 @@ decoderUpdate regs validity eToD fromRAM = (state', dToF, Unused)
     EtoD hazard completedWrite = eToD
     regs' = case completedWrite of
         Nothing -> regs
-        Just (CompletedWrite reg val) -> writeRegister regs reg val
+        Just (Completed1Write reg val) -> writeRegister regs reg val
+        Just (Completed2Write reg1 val1 reg2 val2) -> writeRegister (writeRegister regs reg1 val1) reg2 val2
     decodedInstruction' = case hazard of
         E_D_Stall  -> Nothing
         E_D_Jump _ -> Nothing
@@ -343,7 +345,7 @@ data ExecuteState
     | E_ReadRAM Register
     | E_Nop
     | E_Out (Unsigned 64)
-    | E_Get Register Register
+    | E_Get (Unsigned 64) Register (Unsigned 64) Register
     | E_Put Register Register
     | E_Eval Register
     | E_Halt
@@ -351,6 +353,7 @@ data ExecuteState
 data WtoE = W_E_Write (Maybe CompletedWrite) | W_E_Halt
 
 data DataRAMRequest = Read (Ptr DataRAM)
+                    | Read2 (Ptr DataRAM) (Ptr DataRAM) 
                     | Write (Ptr DataRAM) Word
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
@@ -374,7 +377,7 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
             Jmp dest    -> (E_D_Jump (Ptr dest), E_Nop)
             JmpZ r dest -> (if r == 0 then E_D_Jump (Ptr dest) else E_D_None, E_Nop)
             Out v       -> (E_D_None, E_Out v)
-            Get a b     -> (E_D_None, E_Halt) -- These are Placeholders
+            Get a aptr b bptr -> (E_D_None, E_Halt) -- These are Placeholders
             Put a b     -> (E_D_None, E_Halt) -- These are placeholders
             Eval a      -> (E_D_None, E_Halt) -- These are placeholders
             Halt        -> (E_D_None, E_Halt) -- Modify this to grab the next process in the process pool, or halt if it's empty
@@ -396,7 +399,7 @@ data IsHalted = IsHalted | NotHalted
 data WriteState
     = W_Nop
     | W_Out (Unsigned 64)
-    | W_Get (Index 16) (Index 16)
+    | W_Get (Unsigned 64) (Index 16) (Unsigned 64) (Index 16)
     | W_Put (Index 16) (Index 16)
     | W_Eval (Index 16) 
     | W_Halt deriving (Generic, Show, Eq)
@@ -414,14 +417,14 @@ writerUpdate NotHalted executeState Unused fromRAM = (state', wToE, Unused)
     state' = case executeState of
         E_Out v -> W_Out v
         E_Halt  -> W_Halt
-        E_Get (Register v) (Register p) -> W_Get v p
+        E_Get v1 (Register p1) v2 (Register p2) -> W_Get v1 p1 v2 p2
         E_Put (Register v) (Register p) -> W_Put v p
         E_Eval (Register v) -> W_Eval v
         _       -> W_Nop
     wToE = case executeState of
-        E_Store r v -> W_E_Write (Just (CompletedWrite r v))
+        E_Store r v -> W_E_Write (Just (Completed1Write r v))
                         --- TESTME remove this
-        E_ReadRAM r -> let Word v = fromRAM in W_E_Write (Just (CompletedWrite r v))
+        E_ReadRAM r -> let Word v = fromRAM in W_E_Write (Just (Completed1Write r v))
         _           -> W_E_Write Nothing
 writerSplitter :: WriteState -> (IsHalted, WriteState)
 writerSplitter s = (if s == W_Halt then IsHalted else NotHalted, s)
@@ -473,26 +476,6 @@ dataRAM contents input = output
     read (Write _ _)      = 0
     write (Read _)          = Nothing
     write (Write (Ptr p) v) = Just (p,v)
-
--- dataMultiRAM :: Vec n (Word, Word) -> Signal (DataRAMRequest,DataRAMRequest) -> Signal (Word, Word)
--- dataMultiRAM contents input = output
---   where
---     output = blockRam contents r_input w_input
---     (r_input,w_input) =  ((Plude.zip rl_input wl_input), (Plude.zip rr_input wr_input))
---     ((rl_input,rr_input),(wl_input,wr_input)) =
---       ((Plude.unzip (read <$> input)),
---        (fmap (\x -> (case x of
---            Nothing -> (Nothing,Nothing)
---            Just (a, b) -> (Just a, Just b)))
---           (write <$> input)))
---     read ((Read (Ptr ptrl)),(Read (Ptr ptrr)))    = (ptrl,ptrr)
---     read ((Read (Ptr ptr)),(Write _ _))         = (ptr,0)
---     read ((Write _ _),(Read (Ptr ptr)))         = (0,ptr)        
---     read ((Write _ _),(Write _ _))              = (0,0)
---     write ((Read _),(Read _))                   = Nothing
---     write ((Read _),(Write (Ptr p) v))          = (Just ((0,0),(p,v)))
---     write ((Write (Ptr p) v),(Read _))          = (Just ((p,v),(0,0)))
---     write ((Write (Ptr pl) vl),(Write (Ptr pr) vr)) = Just ((pl,vl),(pr,vr))
 
 -- processPoolDataPair :: Vec n Word -> Vec n Word -> Signal (PoolRAMRequest,DataRAMRequest) -> Signal (Word,Word)
 -- processPoolDataPair poolContents dataContents input = output
