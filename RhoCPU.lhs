@@ -106,9 +106,9 @@ data Instruction register
     | JmpZ register register
     | Out register
     | Put register register -- the first register points to the key, the second points to the value
-    | GetD Register Register -- the first register points to the key, the second points to the continuation
-    | GetK register Register Register -- the first register points to the key, the second points to the continuation
-    | GetP register Register register Register Register -- the first register points to the key, the second points to the continuation    
+    | GetD register register -- the first register points to the key, the second points to the continuation
+    | GetK Register register Register -- the first register points to the key, the second points to the continuation
+    | GetP register Register register Register register -- the first register points to the key, the second points to the continuation    
     | Eval register -- This takes a register that points to a name, and turns the name into a process
     | Halt
     deriving (Show, Functor)
@@ -352,9 +352,9 @@ data ExecuteState
     | E_ReadRAM Register
     | E_Nop
     | E_Out (Unsigned 64)
-    | E_GetD Register Register
-    | E_GetK (Unsigned 64) Register Register    
-    | E_GetP (Unsigned 64) Register (Unsigned 64) Register Register
+    | E_GetD register register
+    | E_GetK Register (Unsigned 64) (Unsigned 64)    
+    | E_GetP (Unsigned 64) Register (Unsigned 64) Register (Unsigned 64)
     | E_Put Register Register
     | E_Eval Register
     | E_Halt
@@ -362,7 +362,6 @@ data ExecuteState
 data WtoE = W_E_Write (Maybe CompletedWrite) | W_E_Halt
 
 data DataRAMRequest = Read (Ptr DataRAM)
-                    | Read2 (Ptr DataRAM) (Ptr DataRAM) 
                     | Write (Ptr DataRAM) Word
 
 -- to be done
@@ -399,8 +398,8 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
     request = case decodedInstr of
         Just (Load _ ptr) -> Read (Ptr ptr)        
         Just (Store v ptr) -> Write (Ptr ptr) (Word v)
---        Just (GetD ptr _) -> Read (Ptr ptr)
---        Just (GetK _ _ ptr) -> Read (Ptr ptr)
+        Just (GetD ptr _) -> Read (Ptr ptr)
+        Just (GetK _ _ ptr) -> Read (Ptr ptr)
         _ -> Read (Ptr 0) -- Could also have a special constructor for "do nothing" if we wanted
         
 -- The write stage uses the entire execute state
