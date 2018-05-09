@@ -108,7 +108,7 @@ data Instruction register
     | Put register register -- the first register points to the key, the second points to the value
     | GetD Register Register -- the first register points to the key, the second points to the continuation
     | GetK register Register Register -- the first register points to the key, the second points to the continuation
-    | GetP register Register register Register -- the first register points to the key, the second points to the continuation    
+    | GetP register Register register Register Register -- the first register points to the key, the second points to the continuation    
     | Eval register -- This takes a register that points to a name, and turns the name into a process
     | Halt
     deriving (Show, Functor)
@@ -190,7 +190,7 @@ encodeInstruction instr = Word $ unpack $ case instr of
     Out      v -> tag 8 ++# encodeReg v                                 ++# 0
     GetD   p1 p2 -> tag 9 ++# encodeReg p1 ++# encodeReg p2             ++# 0
     GetK   v1 p1 p2 -> tag 10 ++# encodeReg v1 ++# encodeReg p1 ++# encodeReg p2 ++# 0
-    GetP   v1 p1 v2 p2 -> tag 11 ++# encodeReg v1 ++# encodeReg p1 ++# encodeReg v2 ++# encodeReg p2 ++# 0
+    GetP   v1 p1 v2 p2 p3 -> tag 11 ++# encodeReg v1 ++# encodeReg p1 ++# encodeReg v2 ++# encodeReg p2 ++# encodeReg p3 ++# 0
     Put    v p -> tag 12 ++# encodeReg v ++# encodeReg p                ++# 0
     Eval     v -> tag 13 ++# encodeReg v                                ++# 0
     Halt       -> tag 14                                                ++# 0
@@ -217,7 +217,7 @@ decodeInstruction (Word val) = case tag of
     8 -> Out    a
     9 -> GetD   a b    
     10 -> GetK  a b c
-    11 -> GetP  a b c d
+    11 -> GetP  a b c d e
     12 -> Put   a b
     13 -> Eval  a
     14 -> Halt
@@ -226,7 +226,8 @@ decodeInstruction (Word val) = case tag of
     a   = decodeReg $ slice Nat.d59 Nat.d56 val
     b   = decodeReg $ slice Nat.d55 Nat.d52 val
     c   = decodeReg $ slice Nat.d51 Nat.d48 val
-    d   = decodeReg $ slice Nat.d47 Nat.d44 val    
+    d   = decodeReg $ slice Nat.d47 Nat.d44 val
+    e   = decodeReg $ slice Nat.d42 Nat.d39 val        
     v   = unpack $ slice Nat.d55 Nat.d0  val
 
 decodeReg :: BitVector 4 -> Register
@@ -353,7 +354,7 @@ data ExecuteState
     | E_Out (Unsigned 64)
     | E_GetD Register Register
     | E_GetK (Unsigned 64) Register Register    
-    | E_GetP (Unsigned 64) Register (Unsigned 64) Register
+    | E_GetP (Unsigned 64) Register (Unsigned 64) Register Register
     | E_Put Register Register
     | E_Eval Register
     | E_Halt
@@ -363,6 +364,10 @@ data WtoE = W_E_Write (Maybe CompletedWrite) | W_E_Halt
 data DataRAMRequest = Read (Ptr DataRAM)
                     | Read2 (Ptr DataRAM) (Ptr DataRAM) 
                     | Write (Ptr DataRAM) Word
+
+-- to be done
+applyK :: (Unsigned 64) -> (Unsigned 64) -> (Unsigned 64)
+applyK k d = 0
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
         -> (Signal EtoD, Signal ExecuteState, Signal DataRAMRequest)
@@ -385,15 +390,17 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
             Jmp dest    -> (E_D_Jump (Ptr dest), E_Nop)
             JmpZ r dest -> (if r == 0 then E_D_Jump (Ptr dest) else E_D_None, E_Nop)
             Out v       -> (E_D_None, E_Out v)
-            GetD aptr bptr -> (E_D_None, E_Halt) -- These are Placeholders
-            GetK a aptr bptr -> (E_D_None, E_Halt) -- These are Placeholders
-            GetP a aptr b bptr -> (E_D_None, E_Halt) -- These are Placeholders
+            GetD aptr bptr -> (E_D_Stall, E_ReadRAM aptr) -- These are Placeholders
+            GetK a aptr bptr -> (E_D_Stall, E_ReadRAM bptr) -- These are Placeholders
+            GetP a aptr b bptr pptr -> (E_D_Stall, E_Store pptr (applyK b a)) -- These are Placeholders
             Put a b     -> (E_D_None, E_Halt) -- These are placeholders
             Eval a      -> (E_D_None, E_Halt) -- These are placeholders
             Halt        -> (E_D_None, E_Halt) -- Modify this to grab the next process in the process pool, or halt if it's empty
     request = case decodedInstr of
-        Just (Load _ ptr) -> Read (Ptr ptr)
+        Just (Load _ ptr) -> Read (Ptr ptr)        
         Just (Store v ptr) -> Write (Ptr ptr) (Word v)
+--        Just (GetD ptr _) -> Read (Ptr ptr)
+--        Just (GetK _ _ ptr) -> Read (Ptr ptr)
         _ -> Read (Ptr 0) -- Could also have a special constructor for "do nothing" if we wanted
         
 -- The write stage uses the entire execute state
@@ -411,7 +418,7 @@ data WriteState
     | W_Out (Unsigned 64)
     | W_GetD (Index 16) (Index 16)
     | W_GetK (Unsigned 64) (Index 16) (Index 16)
-    | W_GetP (Unsigned 64) (Index 16) (Unsigned 64) (Index 16)
+    | W_GetP (Unsigned 64) (Index 16) (Unsigned 64) (Index 16) (Index 16)
     | W_Put (Index 16) (Index 16)
     | W_Eval (Index 16) 
     | W_Halt deriving (Generic, Show, Eq)
@@ -431,7 +438,7 @@ writerUpdate NotHalted executeState Unused fromRAM = (state', wToE, Unused)
         E_Halt  -> W_Halt
         E_GetD (Register p1) (Register p2) -> W_GetD p1 p2        
         E_GetK v1 (Register p1) (Register p2) -> W_GetK v1 p1 p2        
-        E_GetP v1 (Register p1) v2 (Register p2) -> W_GetP v1 p1 v2 p2
+        E_GetP v1 (Register p1) v2 (Register p2) (Register p3) -> W_GetP v1 p1 v2 p2 p3
         E_Put (Register v) (Register p) -> W_Put v p
         E_Eval (Register v) -> W_Eval v
         _       -> W_Nop
