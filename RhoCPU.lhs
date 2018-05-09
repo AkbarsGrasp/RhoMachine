@@ -352,7 +352,7 @@ data ExecuteState
     | E_ReadRAM Register
     | E_Nop
     | E_Out (Unsigned 64)
-    | E_GetD register register
+    | E_GetD (Unsigned 64) (Unsigned 64)
     | E_GetK Register (Unsigned 64) (Unsigned 64)    
     | E_GetP (Unsigned 64) Register (Unsigned 64) Register (Unsigned 64)
     | E_Put Register Register
