@@ -106,7 +106,9 @@ data Instruction register
     | JmpZ register register
     | Out register
     | Put register register -- the first register points to the key, the second points to the value
-    | Get register Register register Register -- the first register points to the key, the second points to the continuation
+    | GetD Register Register -- the first register points to the key, the second points to the continuation
+    | GetK register Register Register -- the first register points to the key, the second points to the continuation
+    | GetP register Register register Register -- the first register points to the key, the second points to the continuation    
     | Eval register -- This takes a register that points to a name, and turns the name into a process
     | Halt
     deriving (Show, Functor)
@@ -186,10 +188,12 @@ encodeInstruction instr = Word $ unpack $ case instr of
     Jmp      p -> tag 6 ++# encodeReg p                                 ++# 0
     JmpZ   z d -> tag 7 ++# encodeReg z ++# encodeReg d                 ++# 0
     Out      v -> tag 8 ++# encodeReg v                                 ++# 0
-    Get    v1 p1 v2 p2 -> tag 9 ++# encodeReg v1 ++# encodeReg p1 ++# encodeReg v2 ++# encodeReg p2 ++# 0
-    Put    v p -> tag 10 ++# encodeReg v ++# encodeReg p                ++# 0
-    Eval     v -> tag 11 ++# encodeReg v                                ++# 0
-    Halt       -> tag 12                                                ++# 0
+    GetD   p1 p2 -> tag 9 ++# encodeReg p1 ++# encodeReg p2             ++# 0
+    GetK   v1 p1 p2 -> tag 10 ++# encodeReg v1 ++# encodeReg p1 ++# encodeReg p2 ++# 0
+    GetP   v1 p1 v2 p2 -> tag 11 ++# encodeReg v1 ++# encodeReg p1 ++# encodeReg v2 ++# encodeReg p2 ++# 0
+    Put    v p -> tag 12 ++# encodeReg v ++# encodeReg p                ++# 0
+    Eval     v -> tag 13 ++# encodeReg v                                ++# 0
+    Halt       -> tag 14                                                ++# 0
 
 -- This is just for clarity, and to specify how many bits a tag should be.
 tag :: BitVector 4 -> BitVector 4
@@ -211,10 +215,12 @@ decodeInstruction (Word val) = case tag of
     6 -> Jmp    a
     7 -> JmpZ   a b
     8 -> Out    a
-    9 -> Get    a b c d
-    10 -> Put   a b
-    11 -> Eval  a
-    12 -> Halt
+    9 -> GetD   a b    
+    10 -> GetK  a b c
+    11 -> GetP  a b c d
+    12 -> Put   a b
+    13 -> Eval  a
+    14 -> Halt
     where
     tag = slice Nat.d63 Nat.d60 val
     a   = decodeReg $ slice Nat.d59 Nat.d56 val
@@ -345,7 +351,9 @@ data ExecuteState
     | E_ReadRAM Register
     | E_Nop
     | E_Out (Unsigned 64)
-    | E_Get (Unsigned 64) Register (Unsigned 64) Register
+    | E_GetD Register Register
+    | E_GetK (Unsigned 64) Register Register    
+    | E_GetP (Unsigned 64) Register (Unsigned 64) Register
     | E_Put Register Register
     | E_Eval Register
     | E_Halt
@@ -377,7 +385,9 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
             Jmp dest    -> (E_D_Jump (Ptr dest), E_Nop)
             JmpZ r dest -> (if r == 0 then E_D_Jump (Ptr dest) else E_D_None, E_Nop)
             Out v       -> (E_D_None, E_Out v)
-            Get a aptr b bptr -> (E_D_None, E_Halt) -- These are Placeholders
+            GetD aptr bptr -> (E_D_None, E_Halt) -- These are Placeholders
+            GetK a aptr bptr -> (E_D_None, E_Halt) -- These are Placeholders
+            GetP a aptr b bptr -> (E_D_None, E_Halt) -- These are Placeholders
             Put a b     -> (E_D_None, E_Halt) -- These are placeholders
             Eval a      -> (E_D_None, E_Halt) -- These are placeholders
             Halt        -> (E_D_None, E_Halt) -- Modify this to grab the next process in the process pool, or halt if it's empty
@@ -399,7 +409,9 @@ data IsHalted = IsHalted | NotHalted
 data WriteState
     = W_Nop
     | W_Out (Unsigned 64)
-    | W_Get (Unsigned 64) (Index 16) (Unsigned 64) (Index 16)
+    | W_GetD (Index 16) (Index 16)
+    | W_GetK (Unsigned 64) (Index 16) (Index 16)
+    | W_GetP (Unsigned 64) (Index 16) (Unsigned 64) (Index 16)
     | W_Put (Index 16) (Index 16)
     | W_Eval (Index 16) 
     | W_Halt deriving (Generic, Show, Eq)
@@ -417,7 +429,9 @@ writerUpdate NotHalted executeState Unused fromRAM = (state', wToE, Unused)
     state' = case executeState of
         E_Out v -> W_Out v
         E_Halt  -> W_Halt
-        E_Get v1 (Register p1) v2 (Register p2) -> W_Get v1 p1 v2 p2
+        E_GetD (Register p1) (Register p2) -> W_GetD p1 p2        
+        E_GetK v1 (Register p1) (Register p2) -> W_GetK v1 p1 p2        
+        E_GetP v1 (Register p1) v2 (Register p2) -> W_GetP v1 p1 v2 p2
         E_Put (Register v) (Register p) -> W_Put v p
         E_Eval (Register v) -> W_Eval v
         _       -> W_Nop
@@ -439,15 +453,6 @@ stallable signal stall = output
     delayed = register undefined output
     output = mux stalled delayed signal
 
--- stallable2 :: Signal a -> Signal (Bool,Maybe (Unsigned 64, Word)) -> Signal a
--- stallable2 signal stall2 = output
---     where
---     stall = fmap (\(s,_) -> s) stall2
---     stalled = register False stall
---     delayed = register undefined output
---     output = mux stalled delayed signal
-    
-
 codeRAM :: Vec n Word -> Signal CodeRAMRequest -> Signal Word
 codeRAM contents input = output
     where
@@ -458,16 +463,6 @@ codeRAM contents input = output
     stall CodeRAMStall = True
     stall (CodeRAMRead _) = False
 
--- processPool :: Vec n Word -> Signal PoolRAMRequest -> Signal Word
--- processPool contents input = output
---     where
---     output = stallable ram (stall <$> input)
---     ram = blockRam contents (readAddr <$> input) (signal Nothing)
---     readAddr PoolRAMStall = 0
---     readAddr (PoolRAMRead (Ptr ptr)) = ptr
---     stall PoolRAMStall = True
---     stall (PoolRAMRead _) = False    
-
 dataRAM :: Vec n Word -> Signal DataRAMRequest -> Signal Word
 dataRAM contents input = output
     where
@@ -476,20 +471,6 @@ dataRAM contents input = output
     read (Write _ _)      = 0
     write (Read _)          = Nothing
     write (Write (Ptr p) v) = Just (p,v)
-
--- processPoolDataPair :: Vec n Word -> Vec n Word -> Signal (PoolRAMRequest,DataRAMRequest) -> Signal (Word,Word)
--- processPoolDataPair poolContents dataContents input = output
---     where
---     output = stallable2 ram (stallAndWrite <$> input)
---     ram = blockRam (zip poolContents dataContents) (readProcDataAddrPair <$> input) (signal Nothing)
---     readProcDataAddrPair (PoolRAMStall,(Read (Ptr ptr))) = (0,ptr)
---     readProcDataAddrPair ((PoolRAMRead (Ptr ptr1)),(Read (Ptr ptr2))) = (ptr1,ptr2)
---     readProcDataAddrPair (PoolRAMStall,(Write _ _)) = (0,0)
---     readProcDataAddrPair ((PoolRAMRead (Ptr ptr)),(Write _ _)) = (ptr,0) 
---     stallAndWrite (PoolRAMStall,(Read _)) = (True,Nothing)
---     stallAndWrite ((PoolRAMRead _),(Read _)) = (False,Nothing)
---     stallAndWrite (PoolRAMStall,(Write (Ptr ptr) v)) = (True, (Just (ptr,v)))
---     stallAndWrite ((PoolRAMRead _),(Write (Ptr ptr) v)) = (False, (Just (ptr,v)))
 
 noRAM :: Signal Unused -> Signal Unused
 noRAM x = x
@@ -502,14 +483,6 @@ allConnected code initialData = fetcher `f2d` decoder `d2e` executer `e2w` write
     f2d = connect (codeRAM code)
     d2e = connect noRAM
     e2w = connect (dataRAM initialData)
-
--- This version wires in the process pool
--- allConnected2 code initialData initialPool = 
---   fetcher `f2d` decoder `d2e` executer `e2pp` processPool `e2w` writer
---     where
---     f2d = connect (codeRAM code)
---     d2e = connect noRAM
---     e2ppw = connect (processPoolDataPair initialPool initialData)
 
 cpu :: Vec n Word -> Vec m Word -> Signal WriteState
 cpu code initialData = output
