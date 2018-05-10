@@ -56,8 +56,6 @@ import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
 import qualified Prelude as Plude (zip,unzip)
 
---import Data.Vector (DVec)
-
 -- Used to make sure that something is fully evaluated.
 -- Good for making sure that our circuit 
 -- doesn't have any undefined behavior.
@@ -66,6 +64,8 @@ import Control.DeepSeq (NFData, rnf)
 import qualified Test.QuickCheck as QC
 
 import GHC.Generics (Generic)
+
+import qualified RhoCalc (Nominal, Name, Behavioral, Process, RhoProcess, procToIntegerList, integerListToProc)
 
 \end{code}
 
