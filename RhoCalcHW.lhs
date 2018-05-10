@@ -7,23 +7,23 @@ module RhoCalcHW(
   ,Behavioral
   ,Process
   ,RhoProcess
-  ,procToIntegerList
-  ,integerListToProc
+--  ,procToIntegerList
+--  ,integerListToProc
   ,discriminator
   ,popen
   ,pclose
   ,nopen
   ,nclose
-  ,unquote
-  ,getNextEntity
-  ,getLastEntity
-  ,getSubject
-  ,getObject
-  ,getParLeft
-  ,getParRight
-  ,getContinuation
-  ,getTransmission
-  ,getNameCenter
+  -- ,unquote
+  -- ,getNextEntity
+  -- ,getLastEntity
+  -- ,getSubject
+  -- ,getObject
+  -- ,getParLeft
+  -- ,getParRight
+  -- ,getContinuation
+  -- ,getTransmission
+  -- ,getNameCenter
   )
   where
 -- import Debug.Trace
