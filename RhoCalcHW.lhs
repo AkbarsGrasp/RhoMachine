@@ -137,23 +137,23 @@ procToIntegerList (Reflect (Eval (Code px))) = tag Plude.++ nx
   where tag = (discriminator (Reflect (Eval (Code px))))
         nx  = nopen Plude.++ (procToIntegerList px) Plude.++ nclose
 
---        bit string   open paren   close paren   contents & remainder of the string
--- unquote :: [(Unsigned 64)] -> [(Unsigned 64)] -> [(Unsigned 64)] -> Maybe ([(Unsigned 64)], [(Unsigned 64)])
--- unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
---   if ([a,b,c,d] == [oa,ob,oc,od])
---   then
---     (h l [oa,ob,oc,od] [ca,cb,cc,cd] 1 [])
---   else Nothing
---   where h [] _ _ n acc                                        =
---           (if (n > 0) then Nothing else Just (acc,[]))
---         h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) 0 acc = Just (acc,(a:b:c:d:l))
---         h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) n acc =
---           (if ([a,b,c,d] == [oa,ob,oc,od])
---             then
---               (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n + 1) (acc ++ [a,b,c,d]))
---             else if ([a,b,c,d] == [ca,cb,cc,cd])
---                  then (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n - 1) (if (n == 1) then acc else (acc ++ [a,b,c,d])))
---                  else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc ++ [a,b,c,d])))
+       bit string   open paren   close paren   contents & remainder of the string
+unquote :: [(Unsigned 64)] -> [(Unsigned 64)] -> [(Unsigned 64)] -> Maybe ([(Unsigned 64)], [(Unsigned 64)])
+unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
+  if ([a,b,c,d] == [oa,ob,oc,od])
+  then
+    (h l [oa,ob,oc,od] [ca,cb,cc,cd] 1 [])
+  else Nothing
+  where h [] _ _ n acc                                        =
+          (if (n > 0) then Nothing else Just (acc,[]))
+        h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) 0 acc = Just (acc,(a:b:c:d:l))
+        h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) n acc =
+          (if ([a,b,c,d] == [oa,ob,oc,od])
+            then
+              (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n + 1) (acc Plude.++ [a,b,c,d]))
+            else if ([a,b,c,d] == [ca,cb,cc,cd])
+                 then (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n - 1) (if (n == 1) then acc else (acc Plude.++ [a,b,c,d])))
+                 else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc Plude.++ [a,b,c,d])))
 
 -- integerListToProc :: [(Unsigned 64)] -> Maybe RhoProcess
 -- getSubject :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
