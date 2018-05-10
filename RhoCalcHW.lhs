@@ -99,8 +99,9 @@ nclose                                = [1,0,0,0]
 -- must produce bit vectors for addresses
 -- must use DeBruijn indices for bound variables
 -- must provide a canonical order for pars
--- procToIntegerList (Reflect Stop) = tag
---   where tag = (discriminator (Reflect Stop))
+procToIntegerList (Reflect Stop) = tag 
+  where tag = (discriminator (Reflect Stop))
+procToIntegerList _ = [1,1,1,1]  
 -- procToIntegerList (Reflect (Input (Code px) (Code py) q)) = tag ++ nx ++ ny ++ qx
 --   where tag = (discriminator (Reflect (Input (Code px) (Code py) q)))
 --         nx  = nopen ++ (procToIntegerList px) ++ nclose
