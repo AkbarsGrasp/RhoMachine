@@ -1,7 +1,7 @@
 \begin{code}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FunctionalDependencies, AllowAmbiguousTypes #-}
 
-module RhoCalc(
+module RhoCalcHW(
   Nominal
   ,Name
   ,Behavioral
@@ -30,10 +30,15 @@ module RhoCalc(
 -- tracey :: Show a => [Char] -> a -> a
 -- tracey name x = trace (name ++ ": " ++ show x) x
 
+import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
+    ($), (.), filter, take, fmap, mapM_, Functor,
+    Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
+import qualified Prelude as Plude (zip,unzip)    
+
 class Nominal n where
   code :: p -> n p
 
-data Name p = Address Integer | Code p deriving (Eq,Show)
+data Name p = Address (Unsigned 64) | Code p deriving (Eq,Show)
 
 instance Nominal Name where
   code = Code
@@ -60,12 +65,12 @@ instance Behavioral Name RhoProcess where
   par (Reflect p) (Reflect q) = Reflect  (Par p q)
   eval x = Reflect (Eval x)
 
-procToIntegerList :: RhoProcess -> [Integer]
-discriminator :: RhoProcess -> [Integer]
-popen :: [Integer]
-pclose :: [Integer]
-nopen :: [Integer]
-nclose :: [Integer]
+procToIntegerList :: RhoProcess -> [(Unsigned 64)]
+discriminator :: RhoProcess -> [(Unsigned 64)]
+popen :: [(Unsigned 64)]
+pclose :: [(Unsigned 64)]
+nopen :: [(Unsigned 64)]
+nclose :: [(Unsigned 64)]
 
 discriminator (Reflect Stop)          = [0,0,0,0]
 discriminator (Reflect (Input _ _ _)) = [0,0,0,1]
@@ -122,7 +127,7 @@ procToIntegerList (Reflect (Eval (Code px))) = tag ++ nx
         nx  = nopen ++ (procToIntegerList px) ++ nclose
 
 --        bit string   open paren   close paren   contents & remainder of the string
-unquote :: [Integer] -> [Integer] -> [Integer] -> Maybe ([Integer], [Integer])
+unquote :: [(Unsigned 64)] -> [(Unsigned 64)] -> [(Unsigned 64)] -> Maybe ([(Unsigned 64)], [(Unsigned 64)])
 unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
   if ([a,b,c,d] == [oa,ob,oc,od])
   then
@@ -139,14 +144,14 @@ unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
                  then (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n - 1) (if (n == 1) then acc else (acc ++ [a,b,c,d])))
                  else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc ++ [a,b,c,d])))
 
-integerListToProc :: [Integer] -> Maybe RhoProcess
-getSubject :: [Integer] -> Maybe (RhoProcess,[Integer])
-getObject :: [Integer] -> Maybe (RhoProcess,[Integer])
-getContinuation :: [Integer] -> Maybe RhoProcess
-getTransmission :: [Integer] -> Maybe RhoProcess
-getParLeft :: [Integer] -> Maybe (RhoProcess,[Integer])
-getParRight :: [Integer] -> Maybe RhoProcess
-getNameCenter :: [Integer] -> Maybe RhoProcess
+integerListToProc :: [(Unsigned 64)] -> Maybe RhoProcess
+getSubject :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
+getObject :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
+getContinuation :: [(Unsigned 64)] -> Maybe RhoProcess
+getTransmission :: [(Unsigned 64)] -> Maybe RhoProcess
+getParLeft :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
+getParRight :: [(Unsigned 64)] -> Maybe RhoProcess
+getNameCenter :: [(Unsigned 64)] -> Maybe RhoProcess
 
 -- todo: replace with do-blocks
 
