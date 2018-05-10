@@ -44,7 +44,7 @@ import CLaSH.Sized.Index (Index)
 import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
     ($), (.), filter, take, fmap, mapM_, Functor,
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
-import qualified Prelude as Plude (zip,unzip)    
+import qualified Prelude as Plude (zip,unzip,++)    
 
 class Nominal n where
   code :: p -> n p
@@ -101,12 +101,12 @@ nclose                                = [1,0,0,0]
 -- must provide a canonical order for pars
 procToIntegerList (Reflect Stop) = tag 
   where tag = (discriminator (Reflect Stop))
+procToIntegerList (Reflect (Input (Code px) (Code py) q)) = tag Plude.++ nx Plude.++ ny Plude.++ qx 
+  where tag = (discriminator (Reflect (Input (Code px) (Code py) q)))
+        nx  = nopen Plude.++ (procToIntegerList px) Plude.++ nclose
+        ny  = nopen Plude.++ (procToIntegerList py) Plude.++ nclose
+        qx  = popen Plude.++ (procToIntegerList (Reflect q)) Plude.++ pclose 
 procToIntegerList _ = [1,1,1,1]  
--- procToIntegerList (Reflect (Input (Code px) (Code py) q)) = tag ++ nx ++ ny ++ qx
---   where tag = (discriminator (Reflect (Input (Code px) (Code py) q)))
---         nx  = nopen ++ (procToIntegerList px) ++ nclose
---         ny  = nopen ++ (procToIntegerList py) ++ nclose
---         qx  = popen ++ (procToIntegerList (Reflect q)) ++ pclose
 -- procToIntegerList (Reflect (Input (Address a) (Code py) q)) = tag ++ nx ++ ny ++ qx
 --   where tag = (discriminator (Reflect (Input (Address a) (Code py) q)))
 --         nx  = nopen ++ [a] ++ nclose
