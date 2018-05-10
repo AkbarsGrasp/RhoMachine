@@ -366,7 +366,7 @@ data DataRAMRequest = Read (Ptr DataRAM)
 
 -- to be done
 applyK :: Register -> Register -> Word
-applyK k d = 0
+applyK k d = Word 0
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
         -> (Signal EtoD, Signal ExecuteState, Signal DataRAMRequest)
@@ -438,7 +438,7 @@ writerUpdate NotHalted executeState Unused fromRAM = (state', wToE, Unused)
         E_Halt  -> W_Halt
         E_GetD (Register p) v -> W_GetD p v        
         E_GetK (Register p) v -> W_GetK p v
-        E_GetP (Register p1) v1 (Register p2) v2 v3 -> W_GetP v1 p1 v2 p2 v3
+        E_GetP (Register p1) v1 (Register p2) v2 v3 -> W_GetP p1 v1 p2 v2 v3
         E_Put (Register v) (Register p) -> W_Put v p
         E_Eval (Register v) -> W_Eval v
         _       -> W_Nop
