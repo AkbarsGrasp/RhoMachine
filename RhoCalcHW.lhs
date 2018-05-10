@@ -44,7 +44,7 @@ import CLaSH.Sized.Index (Index)
 import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
     ($), (.), filter, take, fmap, mapM_, Functor,
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
-import qualified Prelude as Plude (zip,unzip,(++))
+import qualified Prelude as Plude (zip,unzip,(++),(>))
 
 class Nominal n where
   code :: p -> n p
@@ -145,7 +145,7 @@ unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
     (h l [oa,ob,oc,od] [ca,cb,cc,cd] 1 [])
   else Nothing
   where h [] _ _ n acc                                        =
-          (if (n > 0) then Nothing else Just (acc,[]))
+          (if (n Plude.> 0) then Nothing else Just (acc,[]))
         h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) 0 acc = Just (acc,(a:b:c:d:l))
         h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) n acc =
           (if ([a,b,c,d] == [oa,ob,oc,od])
