@@ -76,7 +76,7 @@ instance Behavioral Name RhoProcess where
   par (Reflect p) (Reflect q) = Reflect  (Par p q)
   eval x = Reflect (Eval x)
 
---procToIntegerList :: RhoProcess -> [(Unsigned 64)]
+procToIntegerList :: RhoProcess -> [(Unsigned 64)]
 discriminator :: RhoProcess -> [(Unsigned 64)]
 popen :: [(Unsigned 64)]
 pclose :: [(Unsigned 64)]
@@ -155,75 +155,75 @@ unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
                  then (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n - 1) (if (n == 1) then acc else (acc Plude.++ [a,b,c,d])))
                  else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc Plude.++ [a,b,c,d])))
 
--- integerListToProc :: [(Unsigned 64)] -> Maybe RhoProcess
--- getSubject :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
--- getObject :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
--- getContinuation :: [(Unsigned 64)] -> Maybe RhoProcess
--- getTransmission :: [(Unsigned 64)] -> Maybe RhoProcess
--- getParLeft :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
--- getParRight :: [(Unsigned 64)] -> Maybe RhoProcess
--- getNameCenter :: [(Unsigned 64)] -> Maybe RhoProcess
+integerListToProc :: [(Unsigned 64)] -> Maybe RhoProcess
+getSubject :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
+getObject :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
+getContinuation :: [(Unsigned 64)] -> Maybe RhoProcess
+getTransmission :: [(Unsigned 64)] -> Maybe RhoProcess
+getParLeft :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
+getParRight :: [(Unsigned 64)] -> Maybe RhoProcess
+getNameCenter :: [(Unsigned 64)] -> Maybe RhoProcess
 
 -- todo: replace with do-blocks
 
--- getNextEntity l open close =
---   case (unquote l open close) of
---    Just (contents, remainder) -> (case (integerListToProc contents) of
---      Just p -> Just (p, remainder)
---      Nothing -> Nothing)
---    Nothing -> Nothing
+getNextEntity l open close =
+  case (unquote l open close) of
+   Just (contents, remainder) -> (case (integerListToProc contents) of
+     Just p -> Just (p, remainder)
+     Nothing -> Nothing)
+   Nothing -> Nothing
 
--- getLastEntity l open close =
---   case (unquote l open close) of
---    Just (contents, []) -> (integerListToProc contents)
---    _ -> Nothing
+getLastEntity l open close =
+  case (unquote l open close) of
+   Just (contents, []) -> (integerListToProc contents)
+   _ -> Nothing
 
--- getNextName l = getNextEntity l nopen nclose
+getNextName l = getNextEntity l nopen nclose
 
--- getSubject l = getNextName l  
+getSubject l = getNextName l  
    
--- getObject l = getNextName l
+getObject l = getNextName l
 
--- getParLeft l = getNextEntity l popen pclose
+getParLeft l = getNextEntity l popen pclose
 
--- getContinuation l = getLastEntity l popen pclose
+getContinuation l = getLastEntity l popen pclose
 
--- getTransmission l = getLastEntity l popen pclose
+getTransmission l = getLastEntity l popen pclose
 
--- getParRight l = getLastEntity l popen pclose
+getParRight l = getLastEntity l popen pclose
 
--- getNameCenter l = getLastEntity l nopen nclose
+getNameCenter l = getLastEntity l nopen nclose
 
--- integerListToProc [] = Just (Reflect Stop)
--- integerListToProc (0:0:0:0:[]) = Just (Reflect Stop)
--- integerListToProc (0:0:0:1:l) = 
---   case (getSubject l) of
---     Just (px,l') -> (case (getObject l') of
---       Just (py,l'') -> (case (getContinuation l'') of        
---         Just (Reflect q) -> Just (Reflect (Input (Code px) (Code py) q))
---         Nothing -> Nothing)
---       Nothing -> Nothing)
---     Nothing -> Nothing      
--- integerListToProc (0:0:1:0:l) =
---   case (getSubject l) of 
---     Just (px,l') -> (case (getTransmission l') of
---       Just (Reflect q) -> Just (Reflect (Output (Code px) q))
---       Nothing -> Nothing)
---     Nothing -> Nothing
--- integerListToProc (0:0:1:1:l) =
---   case (getParLeft l) of 
---     Just (pl,l') -> (case (getParRight l') of 
---       Just pr -> (case (pl,pr) of
---         ((Reflect ql),(Reflect qr)) -> Just (Reflect (Par ql qr)))
---       Nothing -> Nothing)
---     Nothing -> Nothing
--- integerListToProc (0:1:0:0:l) = 
---   case (getNameCenter l) of
---     Just q -> Just (Reflect (Eval (Code q)))
---     Nothing -> Nothing
+integerListToProc [] = Just (Reflect Stop)
+integerListToProc (0:0:0:0:[]) = Just (Reflect Stop)
+integerListToProc (0:0:0:1:l) = 
+  case (getSubject l) of
+    Just (px,l') -> (case (getObject l') of
+      Just (py,l'') -> (case (getContinuation l'') of        
+        Just (Reflect q) -> Just (Reflect (Input (Code px) (Code py) q))
+        Nothing -> Nothing)
+      Nothing -> Nothing)
+    Nothing -> Nothing      
+integerListToProc (0:0:1:0:l) =
+  case (getSubject l) of 
+    Just (px,l') -> (case (getTransmission l') of
+      Just (Reflect q) -> Just (Reflect (Output (Code px) q))
+      Nothing -> Nothing)
+    Nothing -> Nothing
+integerListToProc (0:0:1:1:l) =
+  case (getParLeft l) of 
+    Just (pl,l') -> (case (getParRight l') of 
+      Just pr -> (case (pl,pr) of
+        ((Reflect ql),(Reflect qr)) -> Just (Reflect (Par ql qr)))
+      Nothing -> Nothing)
+    Nothing -> Nothing
+integerListToProc (0:1:0:0:l) = 
+  case (getNameCenter l) of
+    Just q -> Just (Reflect (Eval (Code q)))
+    Nothing -> Nothing
 
--- roundtrip :: RhoProcess -> Bool
--- roundtrip p = case (integerListToProc (procToIntegerList p)) of
---   Just q -> p == q
---   Nothing -> False
+roundtrip :: RhoProcess -> Bool
+roundtrip p = case (integerListToProc (procToIntegerList p)) of
+  Just q -> p == q
+  Nothing -> False
 \end{code}
