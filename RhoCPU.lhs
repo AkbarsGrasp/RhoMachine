@@ -365,7 +365,7 @@ data DataRAMRequest = Read (Ptr DataRAM)
                     | Write (Ptr DataRAM) Word
 
 -- to be done
-applyK :: Register -> Register -> (Unsigned 64)
+applyK :: Register -> Register -> Word
 applyK k d = 0
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
@@ -391,7 +391,7 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
             Out v       -> (E_D_None, E_Out v)
             GetD a aptr -> (E_D_Stall, E_ReadRAM a) -- These are Placeholders
             GetK b bptr -> (E_D_Stall, E_ReadRAM b) -- These are Placeholders
-            GetP a aptr b bptr pptr -> (E_D_Stall, E_Store pptr (applyK b a)) -- These are Placeholders
+            GetP a aptr b bptr pptr -> (E_D_None, E_Nop) -- These are Placeholders (E_D_Stall, E_Store pptr (applyK b a))
             Put a b     -> (E_D_None, E_Halt) -- These are placeholders
             Eval a      -> (E_D_None, E_Halt) -- These are placeholders
             Halt        -> (E_D_None, E_Halt) -- Modify this to grab the next process in the process pool, or halt if it's empty
@@ -400,6 +400,7 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
         Just (Store v ptr) -> Write (Ptr ptr) (Word v)
         Just (GetD _ ptr) -> Read (Ptr ptr)
         Just (GetK _ ptr) -> Read (Ptr ptr)
+        Just (GetP a aptr b bptr pptr) -> Write (Ptr pptr) (applyK b a)
         _ -> Read (Ptr 0) -- Could also have a special constructor for "do nothing" if we wanted
         
 -- The write stage uses the entire execute state
