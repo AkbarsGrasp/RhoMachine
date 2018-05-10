@@ -30,6 +30,17 @@ module RhoCalcHW(
 -- tracey :: Show a => [Char] -> a -> a
 -- tracey name x = trace (name ++ ": " ++ show x) x
 
+import CLaSH.Sized.Unsigned (Unsigned)
+import CLaSH.Sized.Vector (Vec((:>), Nil), 
+        (!!), replace, repeat, (++), zip)
+import CLaSH.Class.Resize (zeroExtend)
+import CLaSH.Sized.BitVector (BitVector, (++#), Bit)
+import CLaSH.Class.BitPack (pack, unpack)
+import CLaSH.Prelude (slice, mealy, moore, bundle, unbundle)
+import CLaSH.Promoted.Nat.Literals as Nat
+import CLaSH.Signal (Signal, register, sample, sampleN, signal, mux)
+import CLaSH.Sized.Index (Index)
+    
 import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
     ($), (.), filter, take, fmap, mapM_, Functor,
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
