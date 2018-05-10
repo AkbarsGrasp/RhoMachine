@@ -137,7 +137,7 @@ procToIntegerList (Reflect (Eval (Code px))) = tag Plude.++ nx
   where tag = (discriminator (Reflect (Eval (Code px))))
         nx  = nopen Plude.++ (procToIntegerList px) Plude.++ nclose
 
-       bit string   open paren   close paren   contents & remainder of the string
+--       bit string   open paren   close paren   contents & remainder of the string
 unquote :: [(Unsigned 64)] -> [(Unsigned 64)] -> [(Unsigned 64)] -> Maybe ([(Unsigned 64)], [(Unsigned 64)])
 unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
   if ([a,b,c,d] == [oa,ob,oc,od])
