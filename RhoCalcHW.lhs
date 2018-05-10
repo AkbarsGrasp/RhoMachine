@@ -134,7 +134,7 @@ deBruijnify (Reflect (Output (Code px) q)) l w = (Reflect (Output x (deBruijnify
 deBruijnify (Reflect (Par p q)) l w h = (Reflect (Par (deBruijnify p l w h) (deBruijnify q l (w+1) h)))
 deBruijnify (Reflect (Eval (Code px))) l w h = (Reflect (Eval x))
   where x     = (Code (deBruijnify px l w (h+1)))
-deBruijnify (Reflect (Eval (Address addr)))) l w h = (Reflect (Eval (Address addr)))
+deBruijnify (Reflect (Eval (Address addr))) l w h = (Reflect (Eval (Address addr)))
 
 procToIntegerList (Reflect Stop) = tag 
   where tag = (discriminator (Reflect Stop))
