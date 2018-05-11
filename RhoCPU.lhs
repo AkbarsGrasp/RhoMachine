@@ -613,6 +613,14 @@ instance QC.Arbitrary Word where
 equivalent :: Vec 128 Word -> Vec 128 Word -> Bool
 equivalent code memory = sampleN 100 (cpu code memory) == sampleN 100 (cpu' code memory)
 
+toNumber :: [(Unsigned 64)] -> (Unsigned 64)
+toNumber [] = 0
+toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
+
+-- toBits :: (Unsigned 64) -> [(Unsigned 64)]
+-- toBits 0 = []
+-- toBits x = x - ((logBase 2 x)  | listlength = ((logBase 2x) + 1) --subtract 1 from this every recursion
+--this is your first value in the list
 \end{code}
 
 \begin{code}
