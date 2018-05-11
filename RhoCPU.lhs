@@ -54,7 +54,7 @@ import CLaSH.Prelude.BlockRam (blockRam)
 import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),(^),
     ($), (.), filter, take, fmap, mapM_, length, Functor,
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
-import qualified Prelude as Plude (zip,unzip)
+import qualified Prelude as Plude (zip,unzip,repeat,floor,logBase,fromIntegral,realToFrac,(++))
 
 -- Used to make sure that something is fully evaluated.
 -- Good for making sure that our circuit 
@@ -617,10 +617,31 @@ toNumber :: [(Unsigned 64)] -> (Unsigned 64)
 toNumber [] = 0
 toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
 
+--x - ((logBase 2 x)  | listlength = ((logBase 2 x) + 1) --subtract 1 from this every recursion
+--this is your first value in the list
+toBits :: (Unsigned 64) -> [(Unsigned 64)]
+toBits 0 = []
+toBits x = [1] Plude.++ l
+  where l = (take (m - n) (Plude.repeat 0)) Plude.++ (if ((Plude.fromIntegral m) == d) then [] else r)
+        m = (Plude.floor (Plude.realToFrac d))
+        d = (Plude.logBase (Plude.fromIntegral 2) (Plude.fromIntegral x))
+        n = (if ((Plude.fromIntegral m) == d) then 0 else (length r))
+        r = (toBits (x - m))  
+
+-- toNumber :: [(Unsigned 64)] -> (Unsigned 64)
+-- toNumber [] = 0
+-- toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
+
+-- --x - ((logBase 2 x)  | listlength = ((logBase 2 x) + 1) --subtract 1 from this every recursion
+-- --this is your first value in the list
 -- toBits :: (Unsigned 64) -> [(Unsigned 64)]
 -- toBits 0 = []
--- toBits x = x - ((logBase 2 x)  | listlength = ((logBase 2x) + 1) --subtract 1 from this every recursion
---this is your first value in the list
+-- toBits x = [1] Plude.++ l
+--   where l = (take (m - n) (Plude.repeat 0)) Plude.++ (if (m == d) then [] else r)
+--         m = (Plude.floor d)
+--         d = (Plude.logBase 2 x)
+--         n = (if (m == d) then 0 else (length r))
+--         r = (toBits (x - m))
 \end{code}
 
 \begin{code}
