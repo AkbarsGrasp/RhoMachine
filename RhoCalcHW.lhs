@@ -122,19 +122,19 @@ substitute (Reflect (Eval a)) y x = (Reflect (Eval a'))
   where a' = (if (a == x) then y else a)
 
 -- todo
-toBits :: Integer -> [Integer]
-toNumber :: [Integer] -> Integer
+toBits :: (Unsigned 64) -> [(Unsigned 64)]
+toNumber :: [(Unsigned 64)] -> (Unsigned 64)
 toBits n = []
 toNumber l = 0
 
-deBruijnify :: RhoProcess -> Integer -> Integer -> Integer -> RhoProcess
+deBruijnify :: RhoProcess -> (Unsigned 64) -> (Unsigned 64) -> (Unsigned 64) -> RhoProcess
 deBruijnify (Reflect Stop) l w h = (Reflect Stop)
 deBruijnify (Reflect (Input (Code px) y q)) l w h = (Reflect (Input x dbny q''))
   where (Reflect q'')    = (substitute q' dbny y)
         q'     = (deBruijnify (Reflect q) (l+1) w h)
         x      = (Code (deBruijnify px l w (h+1)))
         dbny   = (Address dbnidx)
-        dbnidx = (toNumber ((toBits l) ++ (toBits w) ++ (toBits h)))
+        dbnidx = (toNumber ((toBits l) Plude.++ (toBits w) Plude.++ (toBits h)))
 deBruijnify (Reflect (Output (Code px) q)) l w h = (Reflect (Output x q'))
   where x               = (Code (deBruijnify px l w (h+1)))
         (Reflect q')    = (deBruijnify (Reflect q) l w h)

@@ -51,8 +51,8 @@ import CLaSH.Sized.Index (Index)
 import CLaSH.Prelude.BlockRam (blockRam)
 
 -- Plain old Haskell stuff
-import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
-    ($), (.), filter, take, fmap, mapM_, Functor,
+import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),(^),
+    ($), (.), filter, take, fmap, mapM_, length, Functor,
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
 import qualified Prelude as Plude (zip,unzip)
 
