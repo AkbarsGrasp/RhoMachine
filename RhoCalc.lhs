@@ -81,8 +81,54 @@ nclose                                = [1,0,0,0]
 
 -- Known issues: in order to provide name equality as bit compare we ...
 -- must produce bit vectors for addresses
--- must use DeBruijn indices for bound variables
 -- must provide a canonical order for pars
+-- must use DeBruijn indices for bound variables
+--   [| for( y <- x )P |](l,w,h) = let z = [| (l,w,h) |] in for( z <- x )([| P |](l+1,w,h){z/y})
+--   [| for( y1 <- x1 )P1 | ... | for( yN <- xN )PN |](l,w,h) 
+--   = let z1 = [| (l,w,h) |] in ... let zN = [| w + N-1 |] in
+--     for( z1 <- x )([| P |](l+1,w,h){z1/y}) | ... | for( z <- x )([| P |](l+1,w + N-1,h){zN/y})
+-- h is used for descent into names
+
+substitute :: RhoProcess -> Name RhoProcess -> Name RhoProcess -> RhoProcess
+substitute (Reflect Stop) y x = (Reflect Stop)
+substitute (Reflect (Input a b q)) y x = (Reflect (Input a' b' q'))
+  where a' = (if (a == x) then y else a)
+        b' = (if (b == x) then (Code (Reflect (Par (Eval b) q))) else b)
+        (Reflect q') = (substitute q'' y x)
+        q'' = (if (b == x) then (substitute (Reflect q) b' b) else (Reflect q))
+substitute (Reflect (Output a q)) y x = (Reflect (Output a' q'))
+  where a' = (if (a == x) then y else a)
+        (Reflect q') = (substitute (Reflect q) y x)
+substitute (Reflect (Par p q)) y x = (Reflect (Par p' q'))
+  where (Reflect p') = (substitute (Reflect p) y x)
+        (Reflect q') = (substitute (Reflect q) y x)
+substitute (Reflect (Eval a)) y x = (Reflect (Eval a'))
+  where a' = (if (a == x) then y else a)
+
+-- todo
+toBits :: Integer -> [Integer]
+toNumber :: [Integer] -> Integer
+toBits n = []
+toNumber l = 0
+
+deBruijnify :: RhoProcess -> Integer -> Integer -> Integer -> RhoProcess
+deBruijnify (Reflect Stop) l w h = (Reflect Stop)
+deBruijnify (Reflect (Input (Code px) y q)) l w h = (Reflect (Input x dbny q''))
+  where (Reflect q'')    = (substitute q' dbny y)
+        q'     = (deBruijnify (Reflect q) (l+1) w h)
+        x      = (Code (deBruijnify px l w (h+1)))
+        dbny   = (Address dbnidx)
+        dbnidx = (toNumber ((toBits l) ++ (toBits w) ++ (toBits h)))
+deBruijnify (Reflect (Output (Code px) q)) l w h = (Reflect (Output x q'))
+  where x               = (Code (deBruijnify px l w (h+1)))
+        (Reflect q')    = (deBruijnify (Reflect q) l w h)
+deBruijnify (Reflect (Par p q)) l w h = (Reflect (Par p' q'))
+  where (Reflect p')    = (deBruijnify (Reflect p) l w h)
+        (Reflect q')    = (deBruijnify (Reflect q) l (w+1) h)
+deBruijnify (Reflect (Eval (Code px))) l w h = (Reflect (Eval x))
+  where x     = (Code (deBruijnify px l w (h+1)))
+deBruijnify (Reflect (Eval (Address addr))) l w h = (Reflect (Eval (Address addr)))
+
 procToIntegerList (Reflect Stop) = tag
   where tag = (discriminator (Reflect Stop))
 procToIntegerList (Reflect (Input (Code px) (Code py) q)) = tag ++ nx ++ ny ++ qx
