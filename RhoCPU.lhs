@@ -108,7 +108,7 @@ data Instruction register
     | Put register register -- the first register points to the key, the second points to the value
     | GetD Register register -- the first register points to the key, the second points to the continuation
     | GetK Register register -- the first register points to the key, the second points to the continuation
-    | GetP Register register Register register register -- the first register points to the key, the second points to the continuation    
+    | GetP Register register Register register Register -- the first register points to the key, the second points to the continuation    
     | Eval register -- This takes a register that points to a name, and turns the name into a process
     | Halt
     deriving (Show, Functor)
@@ -324,7 +324,7 @@ decoderUpdate regs validity eToD fromRAM = (state', dToF, Unused)
     regs' = case completedWrite of
         Nothing -> regs
         Just (Completed1Write reg val) -> writeRegister regs reg val
-        Just (Completed2Write reg1 val1 reg2 val2 pval) -> writeRegister regs (applyK regs reg1 reg2)
+        Just (Completed2Write reg1 val1 reg2 val2 regp) -> writeRegister regs (applyK regs reg1 reg2) regp
     decodedInstruction' = case hazard of
         E_D_Stall  -> Nothing
         E_D_Jump _ -> Nothing
@@ -354,7 +354,7 @@ data ExecuteState
     | E_Out (Unsigned 64)
     | E_GetD Register (Unsigned 64)
     | E_GetK Register (Unsigned 64)    
-    | E_GetP Register (Unsigned 64) Register (Unsigned 64) (Unsigned 64)
+    | E_GetP Register (Unsigned 64) Register (Unsigned 64) Register
     | E_Put Register Register
     | E_Eval Register
     | E_Halt
@@ -366,12 +366,7 @@ data DataRAMRequest = Read (Ptr DataRAM)
 
 -- to be done
 applyK :: Vec 16 Word -> Register -> Register -> Word
-applyK regs k d   = (Word 0)
-  -- where w         = (toNum (procToIntegerList (kApply kProc dDatum)))
-  --   kProc         = (integerListToProc (toBits wProc))
-  --   (Word wProc)  = (readRegister regs k)
-  --   dDatum        = (integerListToProc (toBits wDatum))
-  --   (Word wDatum) = (readRegister regs d)
+applyK regs k d   = (Word (toNum (procToIntegerList (kApply (integerListToProc (toBits (readRegister regs k))) (integerListToProc (toBits (readRegister regs d)))))))
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
         -> (Signal EtoD, Signal ExecuteState, Signal DataRAMRequest)
@@ -396,7 +391,7 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
             Out v       -> (E_D_None, E_Out v)
             GetD a aptr -> (E_D_Stall, E_ReadRAM a) -- These are Placeholders
             GetK b bptr -> (E_D_Stall, E_ReadRAM b) -- These are Placeholders
-            GetP a aptr b bptr pptr -> (E_D_Stall, E_GetP a aptr b bptr pptr) -- These are Placeholders (E_D_Stall, E_Store pptr (applyK b a))
+            GetP a aptr b bptr p -> (E_D_Stall, E_GetP a aptr b bptr pptr) -- These are Placeholders (E_D_Stall, E_Store pptr (applyK b a))
             Put a b     -> (E_D_None, E_Halt) -- These are placeholders
             Eval a      -> (E_D_None, E_Halt) -- These are placeholders
             Halt        -> (E_D_None, E_Halt) -- Modify this to grab the next process in the process pool, or halt if it's empty
@@ -405,7 +400,6 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
         Just (Store v ptr) -> Write (Ptr ptr) (Word v)
         Just (GetD _ ptr) -> Read (Ptr ptr)
         Just (GetK _ ptr) -> Read (Ptr ptr)
-        Just (GetP a aptr b bptr pptr) -> Write (Ptr pptr) (applyK b a)
         _ -> Read (Ptr 0) -- Could also have a special constructor for "do nothing" if we wanted
         
 -- The write stage uses the entire execute state
@@ -423,7 +417,7 @@ data WriteState
     | W_Out (Unsigned 64)
     | W_GetD (Index 16)  (Unsigned 64)
     | W_GetK (Index 16)  (Unsigned 64)
-    | W_GetP (Index 16) (Unsigned 64) (Index 16) (Unsigned 64) (Unsigned 64)
+    | W_GetP (Index 16) (Unsigned 64) (Index 16) (Unsigned 64) (Index 16)
     | W_Put (Index 16) (Index 16)
     | W_Eval (Index 16) 
     | W_Halt deriving (Generic, Show, Eq)
@@ -443,13 +437,13 @@ writerUpdate NotHalted executeState Unused fromRAM = (state', wToE, Unused)
         E_Halt  -> W_Halt
         E_GetD (Register p) v -> W_GetD p v        
         E_GetK (Register p) v -> W_GetK p v
-        E_GetP (Register p1) v1 (Register p2) v2 v3 -> W_GetP p1 v1 p2 v2 v3
+        E_GetP (Register p1) v1 (Register p2) v2 p3 -> W_GetP p1 v1 p2 v2 p3
         E_Put (Register v) (Register p) -> W_Put v p
         E_Eval (Register v) -> W_Eval v
         _       -> W_Nop
     wToE = case executeState of
         E_Store r v -> W_E_Write (Just (Completed1Write r v))
-        E_GetP r1 v1 r2 v2 pv -> W_E_Write (Just (Completed2Write r1 v1 r2 v2 pv))
+        E_GetP r1 v1 r2 v2 rp -> W_E_Write (Just (Completed2Write r1 v1 r2 v2 rp))
                         --- TESTME remove this
         E_ReadRAM r -> let Word v = fromRAM in W_E_Write (Just (Completed1Write r v))
         _           -> W_E_Write Nothing
