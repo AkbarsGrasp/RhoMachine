@@ -14,6 +14,9 @@ module RhoCalcHW(
   ,pclose
   ,nopen
   ,nclose
+  ,kApply
+  ,toNumber
+  ,toBits
   -- ,unquote
   -- ,getNextEntity
   -- ,getLastEntity
@@ -122,6 +125,10 @@ substitute (Reflect (Par p q)) y x = (Reflect (Par p' q'))
         (Reflect q') = (substitute (Reflect q) y x)
 substitute (Reflect (Eval a)) y x = (Reflect (Eval a'))
   where a' = (if (a == x) then y else a)
+
+kApply :: RhoProcess -> RhoProcess -> RhoProcess
+kApply p@(Reflect (Input x y p')) q = (substitute p (Code (Reflect q)) y)
+kApply p _ = p -- should throw and error instead
 
 toNumber :: [(Unsigned 64)] -> (Unsigned 64)
 toNumber [] = 0
