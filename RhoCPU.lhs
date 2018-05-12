@@ -65,7 +65,7 @@ import qualified Test.QuickCheck as QC
 
 import GHC.Generics (Generic)
 
-import qualified RhoCalcHW (Nominal, Name, Behavioral, Process, RhoProcess, Code, kApply, toNumber, toBits, procToIntegerList, integerListToProc,nameToIntegerList,integerListToName)
+import qualified RhoCalcHW (Nominal, Name, Behavioral, Process, RhoProcess, kApply, toNumber, toBits, procToIntegerList, integerListToProc,nameToIntegerList,integerListToName)
 
 \end{code}
 
@@ -320,7 +320,7 @@ decoderUpdate regs validity eToD fromRAM = (state', dToF, Unused)
         Just (Completed3Write reg) ->
           let v = (readRegister regs reg) in
             case (RhoCalcHW.integerListToName (RhoCalcHW.toBits (readRegister regs k))) of
-              Just (Code q) -> (writeRegister regs reg (RhoCalcHW.toNumber (RhoCalcHW.procToIntegerList q)))
+              Just (RhoCalcHW.Code q) -> (writeRegister regs reg (RhoCalcHW.toNumber (RhoCalcHW.procToIntegerList q)))
     decodedInstruction' = case hazard of
         E_D_Stall  -> Nothing
         E_D_Jump _ -> Nothing
