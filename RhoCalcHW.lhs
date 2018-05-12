@@ -7,6 +7,7 @@ module RhoCalcHW(
   ,Behavioral
   ,Process
   ,RhoProcess
+  ,Code
 --  ,procToIntegerList
 --  ,integerListToProc
   ,discriminator
