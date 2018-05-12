@@ -366,12 +366,12 @@ data DataRAMRequest = Read (Ptr DataRAM)
 
 -- to be done
 applyK :: Vec 16 Word -> Register -> Register -> Word
-applyK regs k d = (Word w)
-  where w         = (toNum (procToIntegerList (kApply kProc dDatum)))
-    kProc         = (integerListToProc (toBits wProc))
-    (Word wProc)  = (readRegister regs k)
-    dDatum        = (integerListToProc (toBits wDatum))
-    (Word wDatum) = (readRegister regs d)
+applyK regs k d   = (Word 0)
+  -- where w         = (toNum (procToIntegerList (kApply kProc dDatum)))
+  --   kProc         = (integerListToProc (toBits wProc))
+  --   (Word wProc)  = (readRegister regs k)
+  --   dDatum        = (integerListToProc (toBits wDatum))
+  --   (Word wDatum) = (readRegister regs d)
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
         -> (Signal EtoD, Signal ExecuteState, Signal DataRAMRequest)
