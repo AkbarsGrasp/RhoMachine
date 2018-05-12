@@ -351,7 +351,7 @@ integerListToProc (0:1:0:0:l) =
 
 integerListToName l@(0:1:1:1:rl) =
   case (getNameCenter l) of
-    Just q -> (Code q)
+    Just q -> Just (Code q)
     Nothing -> Nothing
 
 roundtrip :: RhoProcess -> Bool
