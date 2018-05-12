@@ -366,7 +366,7 @@ data DataRAMRequest = Read (Ptr DataRAM)
                     | Write (Ptr DataRAM) Word
 
 -- to be done
-applyK :: Vec 16 Word -> Register -> Register -> Word
+applyK :: Vec 16 (Unsigned 64) -> Register -> Register -> Word
 applyK regs k d   = (Word (toNum (procToIntegerList (kApply (integerListToProc (toBits (readRegister regs k))) (integerListToProc (toBits (readRegister regs d)))))))
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
