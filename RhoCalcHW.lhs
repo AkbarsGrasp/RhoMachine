@@ -127,7 +127,7 @@ substitute (Reflect (Eval a)) y x = (Reflect (Eval a'))
   where a' = (if (a == x) then y else a)
 
 kApply :: RhoProcess -> RhoProcess -> RhoProcess
-kApply p@(Reflect (Input x y p')) q = (substitute p (Code (Reflect q)) y)
+kApply p@(Reflect (Input x y p')) q = (substitute p (Code q) y)
 kApply p _ = p -- should throw and error instead
 
 toNumber :: [(Unsigned 64)] -> (Unsigned 64)
