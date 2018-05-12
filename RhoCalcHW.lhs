@@ -46,6 +46,7 @@ import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
 import qualified Prelude as Plude (zip,unzip,repeat,floor,logBase,fromIntegral,realToFrac,(++))
 import qualified Data.List as DL (sortBy,LT,GT,EQ)
+import qualified Data.Ord as DO (LT,GT,EQ)
 
 class Nominal n where
   code :: p -> n p
@@ -169,29 +170,29 @@ enPar ((Reflect p):ps) = (Reflect (Par p q))
  where (Reflect q) = (enPar ps)
 
 order :: [RhoProcess] -> [RhoProcess]
-order ps = DL.sortBy (sortDL.GT) ps
-  where sortGT (Reflect Stop) (Reflect Stop) = DL.EQ
-        sortGT (Reflect Stop) _ = DL.LT
-        sortGT _ (Reflect Stop) = DL.GT
+order ps = DL.sortBy (sortGT) ps
+  where sortGT (Reflect Stop) (Reflect Stop) = DO.EQ
+        sortGT (Reflect Stop) _ = DO.LT
+        sortGT _ (Reflect Stop) = DO.GT
         sortGT (Reflect (Eval (Code px))) (Reflect (Eval (Code qx))) = sortGT px qx
-        sortGT (Reflect (Eval (Code px))) _ = DL.LT
-        sortGT _ (Reflect (Eval (Code px))) = DL.GT
+        sortGT (Reflect (Eval (Code px))) _ = DO.LT
+        sortGT _ (Reflect (Eval (Code px))) = DO.GT
         sortGT (Reflect (Output (Code p1x) q1)) (Reflect (Output (Code p2x) q2)) =
           case ((sortGT p1x p2x),(sortGT (Reflect q1) (Reflect q2))) of
-            (DL.LT,DL.LT) -> DL.LT
-            (DL.LT,DL.GT) -> DL.GT
-            (DL.GT,DL.LT) -> DL.LT
-            (DL.GT,DL.GT) -> DL.GT
-        sortGT (Reflect (Output (Code p1x) q1)) _ = DL.LT
-        sortGT _ (Reflect (Output (Code p1x) q1)) = DL.GT
+            (DO.LT,DO.LT) -> DO.LT
+            (DO.LT,DO.GT) -> DO.GT
+            (DO.GT,DO.LT) -> DO.LT
+            (DO.GT,DO.GT) -> DO.GT
+        sortGT (Reflect (Output (Code p1x) q1)) _ = DO.LT
+        sortGT _ (Reflect (Output (Code p1x) q1)) = DO.GT
         sortGT (Reflect (Input (Code p1x) y1 q1)) (Reflect (Input (Code p2x) y2 q2)) =
           case ((sortGT p1x p2x),(sortGT (Reflect q1) (Reflect q2))) of
-            (DL.LT,DL.LT) -> DL.LT
-            (DL.LT,DL.GT) -> DL.GT
-            (DL.GT,DL.LT) -> DL.LT
-            (DL.GT,DL.GT) -> DL.GT
-        sortGT (Reflect (Input (Code p1x) y1 q1)) _ = DL.LT
-        sortGT _ (Reflect (Input (Code p1x) y1 q1)) = DL.GT
+            (DO.LT,DO.LT) -> DO.LT
+            (DO.LT,DO.GT) -> DO.GT
+            (DO.GT,DO.LT) -> DO.LT
+            (DO.GT,DO.GT) -> DO.GT
+        sortGT (Reflect (Input (Code p1x) y1 q1)) _ = DO.LT
+        sortGT _ (Reflect (Input (Code p1x) y1 q1)) = DO.GT
           
 
 normalizeP :: RhoProcess -> RhoProcess
