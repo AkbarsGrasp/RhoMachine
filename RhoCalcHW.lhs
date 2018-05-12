@@ -45,8 +45,8 @@ import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
     ($), (.), filter, take, fmap, mapM_, Functor,
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
 import qualified Prelude as Plude (zip,unzip,repeat,floor,logBase,fromIntegral,realToFrac,(++))
-import qualified Data.List as DL (sortBy,LT,GT,EQ)
-import qualified Data.Ord as DO (LT,GT,EQ)
+import qualified Data.List as DL (sortBy)
+import qualified Data.Ord as DO ( Ordering(..) )
 
 class Nominal n where
   code :: p -> n p
