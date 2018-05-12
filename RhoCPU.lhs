@@ -65,7 +65,7 @@ import qualified Test.QuickCheck as QC
 
 import GHC.Generics (Generic)
 
-import qualified RhoCalcHW (Nominal, Name, Behavioral, Process, RhoProcess, kApply, toNumber, toBits, procToIntegerList, integerListToProc)
+import qualified RhoCalcHW (Nominal, Name, Behavioral, Process, RhoProcess, kApply, toNumber, toBits, procToIntegerList, integerListToProc,nameToIntegerList,integerListToName)
 
 \end{code}
 

@@ -19,6 +19,8 @@ module RhoCalcHW(
   ,toBits
   ,procToIntegerList
   ,integerListToProc
+  ,nameToIntegerList
+  ,integerListToName
   -- ,unquote
   -- ,getNextEntity
   -- ,getLastEntity
