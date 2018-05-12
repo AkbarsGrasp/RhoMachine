@@ -324,7 +324,8 @@ decoderUpdate regs validity eToD fromRAM = (state', dToF, Unused)
     regs' = case completedWrite of
         Nothing -> regs
         Just (Completed1Write reg val) -> writeRegister regs reg val
-        Just (Completed2Write reg1 val1 reg2 val2 regp) -> writeRegister regs regp (applyK regs reg1 reg2)
+        Just (Completed2Write reg1 val1 reg2 val2 regp) ->
+          let (Word pw) = (applyK regs reg1 reg2) in writeRegister regs regp pw
     decodedInstruction' = case hazard of
         E_D_Stall  -> Nothing
         E_D_Jump _ -> Nothing
