@@ -308,7 +308,7 @@ data DecodeState = DecodeState {
 
 data EtoDHazard = E_D_Jump (Ptr CodeRAM) | E_D_Stall | E_D_None
 
-data CompletedWrite = Completed1Write Register (Unsigned 64) | Completed2Write Register (Unsigned 64) Register (Unsigned 64) (Unsigned 64)
+data CompletedWrite = Completed1Write Register (Unsigned 64) | Completed2Write Register (Unsigned 64) Register (Unsigned 64) Register
 
 data EtoD = EtoD EtoDHazard (Maybe CompletedWrite)
 
