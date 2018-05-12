@@ -84,6 +84,7 @@ instance Behavioral Name RhoProcess where
   eval x = Reflect (Eval x)
 
 procToIntegerList :: RhoProcess -> [(Unsigned 64)]
+nameToIntegerList :: (Name RhoProcess) -> [(Unsigned 64)]
 discriminator :: RhoProcess -> [(Unsigned 64)]
 popen :: [(Unsigned 64)]
 pclose :: [(Unsigned 64)]
@@ -222,6 +223,8 @@ normalizeP (Reflect (Eval (Address addr))) = (Reflect (Eval (Address addr)))
 normalize :: RhoProcess -> RhoProcess
 normalize p = (normalizeP (deBruijnify p 0 0 0))  
 
+nameToIntegerList (Code px) = (procToIntegerList px)
+
 procToIntegerList (Reflect Stop) = tag 
   where tag = (discriminator (Reflect Stop))
 procToIntegerList (Reflect (Input (Code px) (Code py) q)) = tag Plude.++ nx Plude.++ ny Plude.++ qx 
@@ -279,6 +282,7 @@ unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
                  else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc Plude.++ [a,b,c,d])))
 
 integerListToProc :: [(Unsigned 64)] -> Maybe RhoProcess
+integerListToName :: [(Unsigned 64)] -> Maybe (Name RhoProcess)
 getSubject :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
 getObject :: [(Unsigned 64)] -> Maybe (RhoProcess,[(Unsigned 64)])
 getContinuation :: [(Unsigned 64)] -> Maybe RhoProcess
@@ -343,6 +347,11 @@ integerListToProc (0:0:1:1:l) =
 integerListToProc (0:1:0:0:l) = 
   case (getNameCenter l) of
     Just q -> Just (Reflect (Eval (Code q)))
+    Nothing -> Nothing
+
+integerListToName l@(0:1:1:1:rl) =
+  case (getNameCenter l) of
+    Just q -> (Code q)
     Nothing -> Nothing
 
 roundtrip :: RhoProcess -> Bool

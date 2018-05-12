@@ -105,7 +105,6 @@ data Instruction register
     | Jmp register
     | JmpZ register register
     | Out register
-    | Put register register -- the first register points to the key, the second points to the value
     | GetP Register register Register register Register -- the first register points to the key, the second points to the continuation    
     | Eval register -- This takes a register that points to a name, and turns the name into a process
     | Halt
@@ -187,9 +186,8 @@ encodeInstruction instr = Word $ unpack $ case instr of
     JmpZ   z d -> tag 7 ++# encodeReg z ++# encodeReg d                 ++# 0
     Out      v -> tag 8 ++# encodeReg v                                 ++# 0
     GetP   v1 p1 v2 p2 p3 -> tag 9 ++# encodeReg v1 ++# encodeReg p1 ++# encodeReg v2 ++# encodeReg p2 ++# encodeReg p3 ++# 0
-    Put    v p -> tag 10 ++# encodeReg v ++# encodeReg p                ++# 0
-    Eval     v -> tag 11 ++# encodeReg v                                ++# 0
-    Halt       -> tag 12                                                ++# 0
+    Eval     v -> tag 10 ++# encodeReg v                                ++# 0
+    Halt       -> tag 11                                                ++# 0
 
 -- This is just for clarity, and to specify how many bits a tag should be.
 tag :: BitVector 4 -> BitVector 4
@@ -212,9 +210,8 @@ decodeInstruction (Word val) = case tag of
     7 -> JmpZ   a b
     8 -> Out    a
     9 -> GetP  a b c d e
-    10 -> Put   a b
-    11 -> Eval  a
-    12 -> Halt
+    10 -> Eval  a
+    11 -> Halt
     where
     tag = slice Nat.d63 Nat.d60 val
     a   = decodeReg $ slice Nat.d59 Nat.d56 val
@@ -302,7 +299,7 @@ data DecodeState = DecodeState {
 
 data EtoDHazard = E_D_Jump (Ptr CodeRAM) | E_D_Stall | E_D_None
 
-data CompletedWrite = Completed1Write Register (Unsigned 64) | Completed2Write Register (Unsigned 64) Register (Unsigned 64) Register
+data CompletedWrite = Completed1Write Register (Unsigned 64) | Completed2Write Register (Unsigned 64) Register (Unsigned 64) Register | Completed3Write Register
 
 data EtoD = EtoD EtoDHazard (Maybe CompletedWrite)
 
@@ -320,6 +317,10 @@ decoderUpdate regs validity eToD fromRAM = (state', dToF, Unused)
         Just (Completed1Write reg val) -> writeRegister regs reg val
         Just (Completed2Write reg1 val1 reg2 val2 regp) ->
           let (Word pw) = (applyK regs reg1 reg2) in writeRegister regs regp pw
+        Just (Completed3Write reg) ->
+          let v = (readRegister regs reg) in
+            case (RhoCalcHW.integerListToName (RhoCalcHW.toBits (readRegister regs k))) of
+              Just (Code q) -> (writeRegister regs reg (RhoCalcHW.toNumber (RhoCalcHW.procToIntegerList q)))
     decodedInstruction' = case hazard of
         E_D_Stall  -> Nothing
         E_D_Jump _ -> Nothing
@@ -348,7 +349,6 @@ data ExecuteState
     | E_Nop
     | E_Out (Unsigned 64)
     | E_GetP Register (Unsigned 64) Register (Unsigned 64) Register
-    | E_Put Register Register
     | E_Eval Register
     | E_Halt
 
@@ -386,9 +386,8 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
             Jmp dest    -> (E_D_Jump (Ptr dest), E_Nop)
             JmpZ r dest -> (if r == 0 then E_D_Jump (Ptr dest) else E_D_None, E_Nop)
             Out v       -> (E_D_None, E_Out v)
-            GetP a aptr b bptr p -> (E_D_Stall, E_GetP a aptr b bptr p) -- These are Placeholders (E_D_Stall, E_Store pptr (applyK b a))
-            Put a b     -> (E_D_None, E_Halt) -- These are placeholders
-            Eval a      -> (E_D_None, E_Halt) -- These are placeholders
+            GetP a aptr b bptr p -> (E_D_Stall, E_GetP a aptr b bptr p)
+            Eval a      -> (E_D_None, E_Eval a)
             Halt        -> (E_D_None, E_Halt) -- Modify this to grab the next process in the process pool, or halt if it's empty
     request = case decodedInstr of
         Just (Load _ ptr) -> Read (Ptr ptr)        
@@ -409,7 +408,6 @@ data WriteState
     = W_Nop
     | W_Out (Unsigned 64)
     | W_GetP (Index 16) (Unsigned 64) (Index 16) (Unsigned 64) (Index 16)
-    | W_Put (Index 16) (Index 16)
     | W_Eval (Index 16) 
     | W_Halt deriving (Generic, Show, Eq)
 
@@ -424,15 +422,15 @@ writerUpdate IsHalted  _            Unused _       = (W_Halt, W_E_Halt, Unused)
 writerUpdate NotHalted executeState Unused fromRAM = (state', wToE, Unused)
     where
     state' = case executeState of
-        E_Out v -> W_Out v
-        E_Halt  -> W_Halt
+        E_Out v                                                -> W_Out v
+        E_Halt                                                 -> W_Halt
         E_GetP (Register p1) v1 (Register p2) v2 (Register p3) -> W_GetP p1 v1 p2 v2 p3
-        E_Put (Register v) (Register p) -> W_Put v p
-        E_Eval (Register v) -> W_Eval v
-        _       -> W_Nop
+        E_Eval (Register v)                                    -> W_Eval v
+        _                                                      -> W_Nop
     wToE = case executeState of
-        E_Store r v -> W_E_Write (Just (Completed1Write r v))
+        E_Store r v           -> W_E_Write (Just (Completed1Write r v))
         E_GetP r1 v1 r2 v2 rp -> W_E_Write (Just (Completed2Write r1 v1 r2 v2 rp))
+        E_Eval v              -> W_E_Write (Just (Completed3Write v))
                         --- TESTME remove this
         E_ReadRAM r -> let Word v = fromRAM in W_E_Write (Just (Completed1Write r v))
         _           -> W_E_Write Nothing
