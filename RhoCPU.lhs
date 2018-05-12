@@ -367,7 +367,7 @@ data DataRAMRequest = Read (Ptr DataRAM)
 
 -- to be done
 applyK :: Vec 16 (Unsigned 64) -> Register -> Register -> Word
-applyK regs k d   = (Word (toNumber (procToIntegerList (kApply (integerListToProc (toBits (readRegister regs k))) (integerListToProc (toBits (readRegister regs d)))))))
+applyK regs k d   = (Word (RhoCalcHW.toNumber (procToIntegerList (RhoCalcHW.kApply (integerListToProc (toBits (readRegister regs k))) (integerListToProc (toBits (readRegister regs d)))))))
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
         -> (Signal EtoD, Signal ExecuteState, Signal DataRAMRequest)
@@ -614,20 +614,6 @@ instance QC.Arbitrary Word where
 equivalent :: Vec 128 Word -> Vec 128 Word -> Bool
 equivalent code memory = sampleN 100 (cpu code memory) == sampleN 100 (cpu' code memory)
 
--- toNumber :: [(Unsigned 64)] -> (Unsigned 64)
--- toNumber [] = 0
--- toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
-
--- --x - ((logBase 2 x)  | listlength = ((logBase 2 x) + 1) --subtract 1 from this every recursion
--- --this is your first value in the list
--- toBits :: (Unsigned 64) -> [(Unsigned 64)]
--- toBits 0 = []
--- toBits x = [1] Plude.++ l
---   where l = (take (m - n) (Plude.repeat 0)) Plude.++ (if (m == d) then [] else r)
---         m = (Plude.floor d)
---         d = (Plude.logBase 2 x)
---         n = (if (m == d) then 0 else (length r))
---         r = (toBits (x - m))
 \end{code}
 
 \begin{code}
