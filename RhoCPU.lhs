@@ -106,7 +106,7 @@ data Instruction register
     | JmpZ register register
     | Out register
     | GetP Register register Register register Register -- the first register points to the key, the second points to the continuation    
-    | Eval register -- This takes a register that points to a name, and turns the name into a process
+    | Eval Register -- This takes a register that points to a name, and turns the name into a process
     | Halt
     deriving (Show, Functor)
 
@@ -319,7 +319,7 @@ decoderUpdate regs validity eToD fromRAM = (state', dToF, Unused)
           let (Word pw) = (applyK regs reg1 reg2) in writeRegister regs regp pw
         Just (Completed3Write reg) ->
           let v = (readRegister regs reg) in
-            case (RhoCalcHW.integerListToName (RhoCalcHW.toBits (readRegister regs k))) of
+            case (RhoCalcHW.integerListToName (RhoCalcHW.toBits (readRegister regs reg))) of
               Just (RhoCalcHW.Code q) -> (writeRegister regs reg (RhoCalcHW.toNumber (RhoCalcHW.procToIntegerList q)))
     decodedInstruction' = case hazard of
         E_D_Stall  -> Nothing
