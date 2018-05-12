@@ -37,7 +37,7 @@ import Data.List
 class Nominal n where
   code :: p -> n p
 
-data Name p = Address Integer | Code p deriving (Eq,Show)
+data Name p = Address Int | Code p deriving (Eq,Show)
 
 instance Nominal Name where
   code = Code
@@ -64,12 +64,12 @@ instance Behavioral Name RhoProcess where
   par (Reflect p) (Reflect q) = Reflect  (Par p q)
   eval x = Reflect (Eval x)
 
-procToIntegerList :: RhoProcess -> [Integer]
-discriminator :: RhoProcess -> [Integer]
-popen :: [Integer]
-pclose :: [Integer]
-nopen :: [Integer]
-nclose :: [Integer]
+procToIntegerList :: RhoProcess -> [Int]
+discriminator :: RhoProcess -> [Int]
+popen :: [Int]
+pclose :: [Int]
+nopen :: [Int]
+nclose :: [Int]
 
 discriminator (Reflect Stop)          = [0,0,0,0]
 discriminator (Reflect (Input _ _ _)) = [0,0,0,1]
@@ -110,12 +110,12 @@ substitute (Reflect (Eval a)) y x = (Reflect (Eval a'))
   where a' = (if (a == x) then y else a)
 
 -- todo
-toBits :: Integer -> [Integer]
-toNumber :: [Integer] -> Integer
-toBits n = []
-toNumber l = 0
+-- toBits :: Int -> [Int]
+-- toNumber :: [Int] -> Int
+-- toBits n = []
+-- toNumber l = 0
 
-deBruijnify :: RhoProcess -> Integer -> Integer -> Integer -> RhoProcess
+deBruijnify :: RhoProcess -> Int -> Int -> Int -> RhoProcess
 deBruijnify (Reflect Stop) l w h = (Reflect Stop)
 deBruijnify (Reflect (Input (Code px) y q)) l w h = (Reflect (Input x dbny q''))
   where (Reflect q'')    = (substitute q' dbny y)
@@ -229,7 +229,7 @@ procToIntegerList (Reflect (Eval (Code px))) = tag ++ nx
         nx  = nopen ++ (procToIntegerList px) ++ nclose
 
 --        bit string   open paren   close paren   contents & remainder of the string
-unquote :: [Integer] -> [Integer] -> [Integer] -> Maybe ([Integer], [Integer])
+unquote :: [Int] -> [Int] -> [Int] -> Maybe ([Int], [Int])
 unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
   if ([a,b,c,d] == [oa,ob,oc,od])
   then
@@ -246,14 +246,14 @@ unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
                  then (h l [oa,ob,oc,od] [ca,cb,cc,cd] (n - 1) (if (n == 1) then acc else (acc ++ [a,b,c,d])))
                  else (h l [oa,ob,oc,od] [ca,cb,cc,cd] n (acc ++ [a,b,c,d])))
 
-integerListToProc :: [Integer] -> Maybe RhoProcess
-getSubject :: [Integer] -> Maybe (RhoProcess,[Integer])
-getObject :: [Integer] -> Maybe (RhoProcess,[Integer])
-getContinuation :: [Integer] -> Maybe RhoProcess
-getTransmission :: [Integer] -> Maybe RhoProcess
-getParLeft :: [Integer] -> Maybe (RhoProcess,[Integer])
-getParRight :: [Integer] -> Maybe RhoProcess
-getNameCenter :: [Integer] -> Maybe RhoProcess
+integerListToProc :: [Int] -> Maybe RhoProcess
+getSubject :: [Int] -> Maybe (RhoProcess,[Int])
+getObject :: [Int] -> Maybe (RhoProcess,[Int])
+getContinuation :: [Int] -> Maybe RhoProcess
+getTransmission :: [Int] -> Maybe RhoProcess
+getParLeft :: [Int] -> Maybe (RhoProcess,[Int])
+getParRight :: [Int] -> Maybe RhoProcess
+getNameCenter :: [Int] -> Maybe RhoProcess
 
 -- todo: replace with do-blocks
 
@@ -317,4 +317,19 @@ roundtrip :: RhoProcess -> Bool
 roundtrip p = case (integerListToProc (procToIntegerList p)) of
   Just q -> p == q
   Nothing -> False
+
+toNumber :: [Int] -> Int
+toNumber [] = 0
+toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
+
+--x - ((logBase 2 x)  | listlength = ((logBase 2 x) + 1) --subtract 1 from this every recursion
+--this is your first value in the list
+toBits :: Int -> [Int]
+toBits 0 = []
+toBits x = [1] ++ l
+  where l = (take (m - n) (repeat 0)) ++ (if ((fromIntegral m) == d) then [] else r)
+        m = (floor (realToFrac d))
+        d = (logBase (fromIntegral 2) (fromIntegral x))
+        n = (if ((fromIntegral m) == d) then 0 else (length r))
+        r = (toBits (x - m))  
 \end{code}

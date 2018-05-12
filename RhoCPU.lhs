@@ -51,10 +51,10 @@ import CLaSH.Sized.Index (Index)
 import CLaSH.Prelude.BlockRam (blockRam)
 
 -- Plain old Haskell stuff
-import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
-    ($), (.), filter, take, fmap, mapM_, Functor,
+import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),(^),
+    ($), (.), filter, take, fmap, mapM_, length, Functor,
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
-import qualified Prelude as Plude (zip,unzip)
+import qualified Prelude as Plude (zip,unzip,repeat,floor,logBase,fromIntegral,realToFrac,(++))
 
 -- Used to make sure that something is fully evaluated.
 -- Good for making sure that our circuit 
@@ -613,6 +613,35 @@ instance QC.Arbitrary Word where
 equivalent :: Vec 128 Word -> Vec 128 Word -> Bool
 equivalent code memory = sampleN 100 (cpu code memory) == sampleN 100 (cpu' code memory)
 
+toNumber :: [(Unsigned 64)] -> (Unsigned 64)
+toNumber [] = 0
+toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
+
+--x - ((logBase 2 x)  | listlength = ((logBase 2 x) + 1) --subtract 1 from this every recursion
+--this is your first value in the list
+toBits :: (Unsigned 64) -> [(Unsigned 64)]
+toBits 0 = []
+toBits x = [1] Plude.++ l
+  where l = (take (m - n) (Plude.repeat 0)) Plude.++ (if ((Plude.fromIntegral m) == d) then [] else r)
+        m = (Plude.floor (Plude.realToFrac d))
+        d = (Plude.logBase (Plude.fromIntegral 2) (Plude.fromIntegral x))
+        n = (if ((Plude.fromIntegral m) == d) then 0 else (length r))
+        r = (toBits (x - m))  
+
+-- toNumber :: [(Unsigned 64)] -> (Unsigned 64)
+-- toNumber [] = 0
+-- toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
+
+-- --x - ((logBase 2 x)  | listlength = ((logBase 2 x) + 1) --subtract 1 from this every recursion
+-- --this is your first value in the list
+-- toBits :: (Unsigned 64) -> [(Unsigned 64)]
+-- toBits 0 = []
+-- toBits x = [1] Plude.++ l
+--   where l = (take (m - n) (Plude.repeat 0)) Plude.++ (if (m == d) then [] else r)
+--         m = (Plude.floor d)
+--         d = (Plude.logBase 2 x)
+--         n = (if (m == d) then 0 else (length r))
+--         r = (toBits (x - m))
 \end{code}
 
 \begin{code}
