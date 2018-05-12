@@ -3,7 +3,7 @@
 
 module RhoCalcHW(
   Nominal
-  ,Name
+  ,Name(..)
   ,Behavioral
   ,Process
   ,RhoProcess
