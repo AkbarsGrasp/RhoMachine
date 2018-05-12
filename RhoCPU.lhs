@@ -308,7 +308,7 @@ data DecodeState = DecodeState {
 
 data EtoDHazard = E_D_Jump (Ptr CodeRAM) | E_D_Stall | E_D_None
 
-data CompletedWrite = Completed1Write Register (Unsigned 64) | Completed2Write Register (Unsigned 64) Register (Unsigned 64) 
+data CompletedWrite = Completed1Write Register (Unsigned 64) | Completed2Write Register (Unsigned 64) Register (Unsigned 64) (Unsigned 64)
 
 data EtoD = EtoD EtoDHazard (Maybe CompletedWrite)
 
@@ -324,7 +324,7 @@ decoderUpdate regs validity eToD fromRAM = (state', dToF, Unused)
     regs' = case completedWrite of
         Nothing -> regs
         Just (Completed1Write reg val) -> writeRegister regs reg val
-        Just (Completed2Write reg1 val1 reg2 val2) -> writeRegister (writeRegister regs reg1 val1) reg2 val2
+        Just (Completed2Write reg1 val1 reg2 val2 pval) -> writeRegister regs (applyK regs reg1 reg2)
     decodedInstruction' = case hazard of
         E_D_Stall  -> Nothing
         E_D_Jump _ -> Nothing
@@ -365,8 +365,13 @@ data DataRAMRequest = Read (Ptr DataRAM)
                     | Write (Ptr DataRAM) Word
 
 -- to be done
-applyK :: Register -> Register -> Word
-applyK k d = Word 0
+applyK :: Vec 16 Word -> Register -> Register -> Word
+applyK regs k d = Word w
+  where w         = (toNum (procToIntegerList (kProc dDatum)))
+    kProc         = (integerListToProc (toBits wProc))
+    (Word wProc)  = (readRegister regs k)
+    dDatum        = (integerListToProc (toBits wDatum))
+    (Word wDatum) = (readRegister regs d)
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
         -> (Signal EtoD, Signal ExecuteState, Signal DataRAMRequest)
@@ -391,7 +396,7 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
             Out v       -> (E_D_None, E_Out v)
             GetD a aptr -> (E_D_Stall, E_ReadRAM a) -- These are Placeholders
             GetK b bptr -> (E_D_Stall, E_ReadRAM b) -- These are Placeholders
-            GetP a aptr b bptr pptr -> (E_D_None, E_Nop) -- These are Placeholders (E_D_Stall, E_Store pptr (applyK b a))
+            GetP a aptr b bptr pptr -> (E_D_Stall, E_GetP a aptr b bptr pptr) -- These are Placeholders (E_D_Stall, E_Store pptr (applyK b a))
             Put a b     -> (E_D_None, E_Halt) -- These are placeholders
             Eval a      -> (E_D_None, E_Halt) -- These are placeholders
             Halt        -> (E_D_None, E_Halt) -- Modify this to grab the next process in the process pool, or halt if it's empty
@@ -444,6 +449,7 @@ writerUpdate NotHalted executeState Unused fromRAM = (state', wToE, Unused)
         _       -> W_Nop
     wToE = case executeState of
         E_Store r v -> W_E_Write (Just (Completed1Write r v))
+        E_GetP r1 v1 r2 v2 pv -> W_E_Write (Just (Completed2Write r1 v1 r2 v2 pv))
                         --- TESTME remove this
         E_ReadRAM r -> let Word v = fromRAM in W_E_Write (Just (Completed1Write r v))
         _           -> W_E_Write Nothing
