@@ -122,11 +122,20 @@ substitute (Reflect (Par p q)) y x = (Reflect (Par p' q'))
 substitute (Reflect (Eval a)) y x = (Reflect (Eval a'))
   where a' = (if (a == x) then y else a)
 
--- todo
-toBits :: (Unsigned 64) -> [(Unsigned 64)]
 toNumber :: [(Unsigned 64)] -> (Unsigned 64)
-toBits n = []
-toNumber l = 0
+toNumber [] = 0
+toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
+
+--x - ((logBase 2 x)  | listlength = ((logBase 2 x) + 1) --subtract 1 from this every recursion
+--this is your first value in the list
+toBits :: (Unsigned 64) -> [(Unsigned 64)]
+toBits 0 = []
+toBits x = [1] Plude.++ l
+  where l = (take (m - n) (Plude.repeat 0)) Plude.++ (if ((Plude.fromIntegral m) == d) then [] else r)
+        m = (Plude.floor (Plude.realToFrac d))
+        d = (Plude.logBase (Plude.fromIntegral 2) (Plude.fromIntegral x))
+        n = (if ((Plude.fromIntegral m) == d) then 0 else (length r))
+        r = (toBits (x - m))  
 
 deBruijnify :: RhoProcess -> (Unsigned 64) -> (Unsigned 64) -> (Unsigned 64) -> RhoProcess
 deBruijnify (Reflect Stop) l w h = (Reflect Stop)

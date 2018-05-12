@@ -613,21 +613,6 @@ instance QC.Arbitrary Word where
 equivalent :: Vec 128 Word -> Vec 128 Word -> Bool
 equivalent code memory = sampleN 100 (cpu code memory) == sampleN 100 (cpu' code memory)
 
-toNumber :: [(Unsigned 64)] -> (Unsigned 64)
-toNumber [] = 0
-toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
-
---x - ((logBase 2 x)  | listlength = ((logBase 2 x) + 1) --subtract 1 from this every recursion
---this is your first value in the list
-toBits :: (Unsigned 64) -> [(Unsigned 64)]
-toBits 0 = []
-toBits x = [1] Plude.++ l
-  where l = (take (m - n) (Plude.repeat 0)) Plude.++ (if ((Plude.fromIntegral m) == d) then [] else r)
-        m = (Plude.floor (Plude.realToFrac d))
-        d = (Plude.logBase (Plude.fromIntegral 2) (Plude.fromIntegral x))
-        n = (if ((Plude.fromIntegral m) == d) then 0 else (length r))
-        r = (toBits (x - m))  
-
 -- toNumber :: [(Unsigned 64)] -> (Unsigned 64)
 -- toNumber [] = 0
 -- toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
