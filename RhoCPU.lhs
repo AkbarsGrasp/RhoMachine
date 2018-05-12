@@ -396,7 +396,7 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
             Out v       -> (E_D_None, E_Out v)
             GetD a aptr -> (E_D_Stall, E_ReadRAM a) -- These are Placeholders
             GetK b bptr -> (E_D_Stall, E_ReadRAM b) -- These are Placeholders
-            GetP a aptr b bptr p -> (E_D_Stall, E_GetP a aptr b bptr pptr) -- These are Placeholders (E_D_Stall, E_Store pptr (applyK b a))
+            GetP a aptr b bptr p -> (E_D_Stall, E_GetP a aptr b bptr p) -- These are Placeholders (E_D_Stall, E_Store pptr (applyK b a))
             Put a b     -> (E_D_None, E_Halt) -- These are placeholders
             Eval a      -> (E_D_None, E_Halt) -- These are placeholders
             Halt        -> (E_D_None, E_Halt) -- Modify this to grab the next process in the process pool, or halt if it's empty
@@ -442,7 +442,7 @@ writerUpdate NotHalted executeState Unused fromRAM = (state', wToE, Unused)
         E_Halt  -> W_Halt
         E_GetD (Register p) v -> W_GetD p v        
         E_GetK (Register p) v -> W_GetK p v
-        E_GetP (Register p1) v1 (Register p2) v2 p3 -> W_GetP p1 v1 p2 v2 p3
+        E_GetP (Register p1) v1 (Register p2) v2 (Register p3) -> W_GetP p1 v1 p2 v2 p3
         E_Put (Register v) (Register p) -> W_Put v p
         E_Eval (Register v) -> W_Eval v
         _       -> W_Nop
