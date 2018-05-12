@@ -30,6 +30,10 @@ module RhoCalc(
 -- tracey :: Show a => [Char] -> a -> a
 -- tracey name x = trace (name ++ ": " ++ show x) x
 
+import Data.Ord
+import Data.List
+
+    
 class Nominal n where
   code :: p -> n p
 
@@ -128,6 +132,63 @@ deBruijnify (Reflect (Par p q)) l w h = (Reflect (Par p' q'))
 deBruijnify (Reflect (Eval (Code px))) l w h = (Reflect (Eval x))
   where x     = (Code (deBruijnify px l w (h+1)))
 deBruijnify (Reflect (Eval (Address addr))) l w h = (Reflect (Eval (Address addr)))
+
+flatten :: RhoProcess -> [RhoProcess]
+flatten (Reflect Stop) = [(Reflect Stop)]
+flatten (Reflect (Input (Code px) y q)) = [(Reflect (Input (Code px) y q))]
+flatten (Reflect (Output (Code px) q)) = [(Reflect (Output (Code px) q))]
+flatten (Reflect (Par p q)) = (flatten (Reflect p)) ++ (flatten (Reflect q))
+flatten (Reflect (Eval (Code px))) = [(Reflect (Eval (Code px)))]
+flatten (Reflect (Eval (Address addr))) = [(Reflect (Eval (Address addr)))]
+
+enPar :: [RhoProcess] -> RhoProcess
+enPar [] = (Reflect Stop)
+enPar ((Reflect p):ps) = (Reflect (Par p q))
+ where (Reflect q) = (enPar ps)
+
+order :: [RhoProcess] -> [RhoProcess]
+order ps = sortBy (sortGT) ps
+  where sortGT (Reflect Stop) (Reflect Stop) = EQ
+        sortGT (Reflect Stop) _ = LT
+        sortGT _ (Reflect Stop) = GT
+        sortGT (Reflect (Eval (Code px))) (Reflect (Eval (Code qx))) = sortGT px qx
+        sortGT (Reflect (Eval (Code px))) _ = LT
+        sortGT _ (Reflect (Eval (Code px))) = GT
+        sortGT (Reflect (Output (Code p1x) q1)) (Reflect (Output (Code p2x) q2)) =
+          case ((sortGT p1x p2x),(sortGT (Reflect q1) (Reflect q2))) of
+            (LT,LT) -> LT
+            (LT,GT) -> GT
+            (GT,LT) -> LT
+            (GT,GT) -> GT
+        sortGT (Reflect (Output (Code p1x) q1)) _ = LT
+        sortGT _ (Reflect (Output (Code p1x) q1)) = GT
+        sortGT (Reflect (Input (Code p1x) y1 q1)) (Reflect (Input (Code p2x) y2 q2)) =
+          case ((sortGT p1x p2x),(sortGT (Reflect q1) (Reflect q2))) of
+            (LT,LT) -> LT
+            (LT,GT) -> GT
+            (GT,LT) -> LT
+            (GT,GT) -> GT
+        sortGT (Reflect (Input (Code p1x) y1 q1)) _ = LT
+        sortGT _ (Reflect (Input (Code p1x) y1 q1)) = GT
+          
+
+normalizeP :: RhoProcess -> RhoProcess
+normalizeP (Reflect Stop) = (Reflect Stop)
+normalizeP (Reflect (Input (Code px) y q)) = (Reflect (Input x y q'))
+  where (Reflect q')    = (normalizeP (Reflect q))
+        x               = (Code (normalizeP px))
+normalizeP (Reflect (Output (Code px) q)) = (Reflect (Output x q'))
+  where x               = (Code (normalizeP px))
+        (Reflect q')    = (normalizeP (Reflect q))
+normalizeP ppq@(Reflect (Par p q)) = (enPar (order (flatten ppq)))
+  where (Reflect p')    = (normalizeP (Reflect p))
+        (Reflect q')    = (normalizeP (Reflect q))
+normalizeP (Reflect (Eval (Code px))) = (Reflect (Eval x))
+  where x     = (Code (normalizeP px))
+normalizeP (Reflect (Eval (Address addr))) = (Reflect (Eval (Address addr)))
+
+normalize :: RhoProcess -> RhoProcess
+normalize p = (normalizeP (deBruijnify p 0 0 0))  
 
 procToIntegerList (Reflect Stop) = tag
   where tag = (discriminator (Reflect Stop))
