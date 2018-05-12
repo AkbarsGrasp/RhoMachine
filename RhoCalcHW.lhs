@@ -169,29 +169,29 @@ enPar ((Reflect p):ps) = (Reflect (Par p q))
  where (Reflect q) = (enPar ps)
 
 order :: [RhoProcess] -> [RhoProcess]
-order ps = DL.sortBy (sortGT) ps
-  where sortGT (Reflect Stop) (Reflect Stop) = EQ
-        sortGT (Reflect Stop) _ = LT
-        sortGT _ (Reflect Stop) = GT
+order ps = DL.sortBy (sortDL.GT) ps
+  where sortGT (Reflect Stop) (Reflect Stop) = DL.EQ
+        sortGT (Reflect Stop) _ = DL.LT
+        sortGT _ (Reflect Stop) = DL.GT
         sortGT (Reflect (Eval (Code px))) (Reflect (Eval (Code qx))) = sortGT px qx
-        sortGT (Reflect (Eval (Code px))) _ = LT
-        sortGT _ (Reflect (Eval (Code px))) = GT
+        sortGT (Reflect (Eval (Code px))) _ = DL.LT
+        sortGT _ (Reflect (Eval (Code px))) = DL.GT
         sortGT (Reflect (Output (Code p1x) q1)) (Reflect (Output (Code p2x) q2)) =
           case ((sortGT p1x p2x),(sortGT (Reflect q1) (Reflect q2))) of
-            (LT,LT) -> LT
-            (LT,GT) -> GT
-            (GT,LT) -> LT
-            (GT,GT) -> GT
-        sortGT (Reflect (Output (Code p1x) q1)) _ = LT
-        sortGT _ (Reflect (Output (Code p1x) q1)) = GT
+            (DL.LT,DL.LT) -> DL.LT
+            (DL.LT,DL.GT) -> DL.GT
+            (DL.GT,DL.LT) -> DL.LT
+            (DL.GT,DL.GT) -> DL.GT
+        sortGT (Reflect (Output (Code p1x) q1)) _ = DL.LT
+        sortGT _ (Reflect (Output (Code p1x) q1)) = DL.GT
         sortGT (Reflect (Input (Code p1x) y1 q1)) (Reflect (Input (Code p2x) y2 q2)) =
           case ((sortGT p1x p2x),(sortGT (Reflect q1) (Reflect q2))) of
-            (LT,LT) -> LT
-            (LT,GT) -> GT
-            (GT,LT) -> LT
-            (GT,GT) -> GT
-        sortGT (Reflect (Input (Code p1x) y1 q1)) _ = LT
-        sortGT _ (Reflect (Input (Code p1x) y1 q1)) = GT
+            (DL.LT,DL.LT) -> DL.LT
+            (DL.LT,DL.GT) -> DL.GT
+            (DL.GT,DL.LT) -> DL.LT
+            (DL.GT,DL.GT) -> DL.GT
+        sortGT (Reflect (Input (Code p1x) y1 q1)) _ = DL.LT
+        sortGT _ (Reflect (Input (Code p1x) y1 q1)) = DL.GT
           
 
 normalizeP :: RhoProcess -> RhoProcess
