@@ -65,7 +65,7 @@ import qualified Test.QuickCheck as QC
 
 import GHC.Generics (Generic)
 
-import qualified RhoCalcHW (Nominal, Name, Behavioral, Process, RhoProcess)
+import qualified RhoCalcHW (Nominal, Name, Behavioral, Process, RhoProcess, kApply, toNumber, toBits)
 
 \end{code}
 
@@ -367,7 +367,7 @@ data DataRAMRequest = Read (Ptr DataRAM)
 
 -- to be done
 applyK :: Vec 16 (Unsigned 64) -> Register -> Register -> Word
-applyK regs k d   = (Word (toNum (procToIntegerList (kApply (integerListToProc (toBits (readRegister regs k))) (integerListToProc (toBits (readRegister regs d)))))))
+applyK regs k d   = (Word (toNumber (procToIntegerList (kApply (integerListToProc (toBits (readRegister regs k))) (integerListToProc (toBits (readRegister regs d)))))))
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
         -> (Signal EtoD, Signal ExecuteState, Signal DataRAMRequest)
