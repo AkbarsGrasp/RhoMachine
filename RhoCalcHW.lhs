@@ -41,8 +41,8 @@ import CLaSH.Promoted.Nat.Literals as Nat
 import CLaSH.Signal (Signal, register, sample, sampleN, signal, mux)
 import CLaSH.Sized.Index (Index)
     
-import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),
-    ($), (.), filter, take, fmap, mapM_, Functor,
+import Prelude (Show, Eq, print, (+), (-), (*), (==), (/=),(^),
+    ($), (.), filter, take, fmap, mapM_, length, Functor,
     Bool(True,False), not, Maybe(Just,Nothing), (<$>), (<*>), undefined)
 import qualified Prelude as Plude (zip,unzip,repeat,floor,logBase,fromIntegral,realToFrac,(++))
 import qualified Data.List as DL (sortBy)
