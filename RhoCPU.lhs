@@ -367,7 +367,11 @@ data DataRAMRequest = Read (Ptr DataRAM)
 
 -- to be done
 applyK :: Vec 16 (Unsigned 64) -> Register -> Register -> Word
-applyK regs k d   = (Word (RhoCalcHW.toNumber (RhoCalcHW.procToIntegerList (RhoCalcHW.kApply (RhoCalcHW.integerListToProc (RhoCalcHW.toBits (readRegister regs k))) (RhoCalcHW.integerListToProc (RhoCalcHW.toBits (readRegister regs d)))))))
+applyK regs k d   =
+  let (kProc,dDatum) = ((RhoCalcHW.integerListToProc (RhoCalcHW.toBits (readRegister regs k))),(RhoCalcHW.integerListToProc (RhoCalcHW.toBits (readRegister regs d)))) in
+    case (kProc,dDatum) of
+      ((Just kp),(Just dd)) -> (Word (RhoCalcHW.toNumber (RhoCalcHW.procToIntegerList (RhoCalcHW.kApply kp dd))))
+      (_,_) -> (Word 0)
 
 executer :: (Signal (Maybe (Instruction (Unsigned 64))), Signal WtoE, Signal Unused)
         -> (Signal EtoD, Signal ExecuteState, Signal DataRAMRequest)
