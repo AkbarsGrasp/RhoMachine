@@ -259,7 +259,7 @@ unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
     (h l [oa,ob,oc,od] [ca,cb,cc,cd] 1 [])
   else Nothing
   where h [] _ _ n acc                                        =
-          (if (n Plude.> 0) then Nothing else Just (acc,[]))
+          (if (n > 0) then Nothing else Just (acc,[]))
         h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) 0 acc = Just (acc,(a:b:c:d:l))
         h (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) n acc =
           (if ([a,b,c,d] == [oa,ob,oc,od])
