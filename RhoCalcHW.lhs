@@ -104,11 +104,11 @@ pclose                                = [0, 1, 1, 0]
 nopen                                 = [0, 1, 1, 1]
 nclose                                = [1, 0, 0, 0]
 
-discriminatorW :: RhoProcess -> (BitVector (BitPack.BitSize (Unsigned 64)))
-popenW :: (BitVector (BitPack.BitSize (Unsigned 64)))
-pcloseW :: (BitVector (BitPack.BitSize (Unsigned 64)))
-nopenW :: (BitVector (BitPack.BitSize (Unsigned 64)))
-ncloseW :: (BitVector (BitPack.BitSize (Unsigned 64)))
+discriminatorW :: RhoProcess -> (BitVector (BitSize (Unsigned 64)))
+popenW :: (BitVector (BitSize (Unsigned 64)))
+pcloseW :: (BitVector (BitSize (Unsigned 64)))
+nopenW :: (BitVector (BitSize (Unsigned 64)))
+ncloseW :: (BitVector (BitSize (Unsigned 64)))
 
 discriminatorW (Reflect Stop)          = 0
 discriminatorW (Reflect (Input _ _ _)) = 1
