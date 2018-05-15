@@ -42,7 +42,7 @@ import CLaSH.Sized.Vector (Vec((:>), Nil),
         (!!), replace, repeat, (++), zip)
 import CLaSH.Class.Resize (zeroExtend)
 import CLaSH.Sized.BitVector (BitVector, (++#), Bit)
-import CLaSH.Class.BitPack (pack, unpack)
+import CLaSH.Class.BitPack (BitSize, pack, unpack)
 import CLaSH.Prelude (slice, mealy, moore, bundle, unbundle)
 import CLaSH.Promoted.Nat.Literals as Nat
 import CLaSH.Signal (Signal, register, sample, sampleN, signal, mux)
