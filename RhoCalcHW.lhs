@@ -87,23 +87,39 @@ instance Behavioral Name RhoProcess where
 
 procToIntegerList :: RhoProcess -> [(Unsigned 64)]
 nameToIntegerList :: (Name RhoProcess) -> [(Unsigned 64)]
-discriminator :: RhoProcess -> [(Unsigned 64)]
-popen :: [(Unsigned 64)]
-pclose :: [(Unsigned 64)]
-nopen :: [(Unsigned 64)]
-nclose :: [(Unsigned 64)]
+discriminator :: RhoProcess ->  [(Unsigned 64)]
+popen ::  [(Unsigned 64)]
+pclose ::  [(Unsigned 64)]
+nopen ::  [(Unsigned 64) ]
+nclose ::  [(Unsigned 64)]
 
-discriminator (Reflect Stop)          = [0,0,0,0]
-discriminator (Reflect (Input _ _ _)) = [0,0,0,1]
-discriminator (Reflect (Output _ _))  = [0,0,1,0]
-discriminator (Reflect (Par _ _))     = [0,0,1,1]
-discriminator (Reflect (Eval _))      = [0,1,0,0]
+discriminator (Reflect Stop)          = 0 :> 0 :> 0 :> 0
+discriminator (Reflect (Input _ _ _)) = 0 :> 0 :> 0 :> 1
+discriminator (Reflect (Output _ _))  = 0 :> 0 :> 1 :> 0
+discriminator (Reflect (Par _ _))     = 0 :> 0 :> 1 :> 1
+discriminator (Reflect (Eval _))      = 0 :> 1 :> 0 :> 0
 
-popen                                 = [0,1,0,1]
-pclose                                = [0,1,1,0]
-nopen                                 = [0,1,1,1]
-nclose                                = [1,0,0,0]
+popen                                 = 0 :> 1 :> 0 :> 1
+pclose                                = 0 :> 1 :> 1 :> 0
+nopen                                 = 0 :> 1 :> 1 :> 1
+nclose                                = 1 :> 0 :> 0 :> 0
 
+discriminator :: RhoProcess -> (BitVector 4)
+popen :: (BitVector 4)
+pclose :: (BitVector 4)
+nopen :: (BitVector 4)
+nclose :: (BitVector 4)
+
+discriminatorW (Reflect Stop)          = 0
+discriminatorW (Reflect (Input _ _ _)) = 1
+discriminatorW (Reflect (Output _ _))  = 2
+discriminatorW (Reflect (Par _ _))     = 3
+discriminatorW (Reflect (Eval _))      = 4
+
+popenW                                 = 5
+pcloseW                                = 6
+nopenW                                 = 7
+ncloseW                                = 8
 
 -- Known issues: in order to provide name equality as bit compare we ...
 -- must produce bit vectors for addresses
@@ -141,7 +157,7 @@ toNumber l@(x:xs) = 2^((length l) - 1) * x + (toNumber xs)
 
 --x - ((logBase 2 x)  | listlength = ((logBase 2 x) + 1) --subtract 1 from this every recursion
 --this is your first value in the list
-toBits :: (Unsigned 64) -> [(Unsigned 64)]
+toBits :: (Unsigned 64) ->  [(Unsigned 64)]
 toBits 0 = []
 toBits x = [1] Plude.++ l
   where l = (take (m - n) (Plude.repeat 0)) Plude.++ (if ((Plude.fromIntegral m) == d) then [] else r)
@@ -168,7 +184,7 @@ deBruijnify (Reflect (Eval (Code px))) l w h = (Reflect (Eval x))
   where x     = (Code (deBruijnify px l w (h+1)))
 deBruijnify (Reflect (Eval (Address addr))) l w h = (Reflect (Eval (Address addr)))
 
-flatten :: RhoProcess -> [RhoProcess]
+flatten :: RhoProcess ->  [RhoProcess]
 flatten (Reflect Stop) = [(Reflect Stop)]
 flatten (Reflect (Input (Code px) y q)) = [(Reflect (Input (Code px) y q))]
 flatten (Reflect (Output (Code px) q)) = [(Reflect (Output (Code px) q))]
@@ -264,6 +280,45 @@ procToIntegerList (Reflect (Par p q)) = tag Plude.++ px Plude.++ qx
 procToIntegerList (Reflect (Eval (Code px))) = tag Plude.++ nx
   where tag = (discriminator (Reflect (Eval (Code px))))
         nx  = nopen Plude.++ (procToIntegerList px) Plude.++ nclose
+
+procToWord :: RhoProcess -> (Unsigned 64)
+procToWord (Reflect Stop) = (unpack tag)
+  where tag = (discriminator (Reflect Stop))
+procToWord (Reflect (Input (Code px) (Code py) q)) = (unpack (tag ++# nx ++# ny ++# qx))
+  where tag = (discriminatorW (Reflect (Input (Code px) (Code py) q)))
+        nx  = nopenW ++# (pack (procToWord px)) ++# ncloseW
+        ny  = nopenW ++# (pack (procToWord py)) ++# ncloseW
+        qx  = popenW ++# (pack (procToWord (Reflect q))) ++# pcloseW 
+procToWord (Reflect (Input (Address a) (Code py) q)) = (unpack (tag ++# nx ++# ny ++# qx))
+  where tag = (discriminatorW (Reflect (Input (Address a) (Code py) q)))
+        nx  = nopenW ++# (pack a) ++# ncloseW
+        ny  = nopenW ++# (pack (procToWord py)) ++# ncloseW
+        qx  = popenW ++# (pack (procToWord (Reflect q))) ++# pcloseW
+procToWord (Reflect (Input (Code px) (Address a) q)) = (unpack (tag ++# nx ++# ny ++# qx))
+  where tag = (discriminatorW (Reflect (Input (Code px) (Address a) q)))
+        nx  = nopenW ++# (pack (procToWord px)) ++# ncloseW
+        ny  = nopenW ++# (pack a) ++# ncloseW
+        qx  = popenW ++# (pack (procToWord (Reflect q))) ++# pcloseW
+procToWord (Reflect (Input (Address ax) (Address ay) q)) = (unpack (tag ++# nx ++# ny ++# qx))
+  where tag = (discriminatorW (Reflect (Input (Address ax) (Address ay) q)))
+        nx  = nopenW ++# (pack ax) ++# ncloseW
+        ny  = nopenW ++# (pack ay) ++# ncloseW
+        qx  = popenW ++# (pack (procToWord (Reflect q))) ++# pcloseW
+procToWord (Reflect (Output (Code px) q)) = (unpack (tag ++# nx ++# qx))
+  where tag = (discriminatorW (Reflect (Output (Code px) q)))
+        nx  = nopenW ++# (pack (procToWord px)) ++# ncloseW
+        qx  = popenW ++# (pack (procToWord (Reflect q))) ++# pcloseW
+procToWord (Reflect (Output (Address a) q)) = (unpack (tag ++# nx ++# qx))
+  where tag = (discriminatorW (Reflect (Output (Address a) q)))
+        nx  = nopenW ++# (pack a) ++# ncloseW
+        qx  = popenW ++# (pack (procToWord (Reflect q))) ++# pcloseW
+procToWord (Reflect (Par p q)) = (unpack (tag ++# px ++# qx))
+  where tag = (discriminatorW (Reflect (Par p q)))
+        px  = popenW ++# (pack (procToWord (Reflect p))) ++# pcloseW
+        qx  = popenW ++# (pack (procToWord (Reflect q))) ++# pcloseW
+procToWord (Reflect (Eval (Code px))) = (unpack (tag ++# nx))
+  where tag = (discriminatorW (Reflect (Eval (Code px))))
+        nx  = nopenW ++# (pack (procToWord px)) ++# ncloseW        
 
 --       bit string   open paren   close paren   contents & remainder of the string
 unquote :: [(Unsigned 64)] -> [(Unsigned 64)] -> [(Unsigned 64)] -> Maybe ([(Unsigned 64)], [(Unsigned 64)])

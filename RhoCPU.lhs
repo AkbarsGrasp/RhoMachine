@@ -107,6 +107,7 @@ data Instruction register
     | Out register
     | GetP Register register Register register Register -- the first register points to the key, the second points to the continuation    
     | Eval Register -- This takes a register that points to a name, and turns the name into a process
+    | Stop Register -- This takes a register that points to the next process in the process pool
     | Halt
     deriving (Show, Functor)
 
@@ -187,7 +188,8 @@ encodeInstruction instr = Word $ unpack $ case instr of
     Out      v -> tag 8 ++# encodeReg v                                 ++# 0
     GetP   v1 p1 v2 p2 p3 -> tag 9 ++# encodeReg v1 ++# encodeReg p1 ++# encodeReg v2 ++# encodeReg p2 ++# encodeReg p3 ++# 0
     Eval     v -> tag 10 ++# encodeReg v                                ++# 0
-    Halt       -> tag 11                                                ++# 0
+    Stop     v -> tag 11 ++# encodeReg v                                ++# 0
+    Halt       -> tag 12                                                ++# 0
 
 -- This is just for clarity, and to specify how many bits a tag should be.
 tag :: BitVector 4 -> BitVector 4
@@ -211,7 +213,8 @@ decodeInstruction (Word val) = case tag of
     8 -> Out    a
     9 -> GetP  a b c d e
     10 -> Eval  a
-    11 -> Halt
+    11 -> Stop  a
+    12 -> Halt
     where
     tag = slice Nat.d63 Nat.d60 val
     a   = decodeReg $ slice Nat.d59 Nat.d56 val
@@ -299,7 +302,7 @@ data DecodeState = DecodeState {
 
 data EtoDHazard = E_D_Jump (Ptr CodeRAM) | E_D_Stall | E_D_None
 
-data CompletedWrite = Completed1Write Register (Unsigned 64) | Completed2Write Register (Unsigned 64) Register (Unsigned 64) Register | Completed3Write Register
+data CompletedWrite = Completed1Write Register (Unsigned 64) | Completed2Write Register (Unsigned 64) Register (Unsigned 64) Register | Completed3Write Register | Completed4Write Register
 
 data EtoD = EtoD EtoDHazard (Maybe CompletedWrite)
 
@@ -318,6 +321,10 @@ decoderUpdate regs validity eToD fromRAM = (state', dToF, Unused)
         Just (Completed2Write reg1 val1 reg2 val2 regp) ->
           let (Word pw) = (applyK regs reg1 reg2) in writeRegister regs regp pw
         Just (Completed3Write reg) ->
+          let v = (readRegister regs reg) in
+            case (RhoCalcHW.integerListToName (RhoCalcHW.toBits (readRegister regs reg))) of
+              Just (RhoCalcHW.Code q) -> (writeRegister regs reg (RhoCalcHW.toNumber (RhoCalcHW.procToIntegerList q)))
+        Just (Completed4Write reg) ->
           let v = (readRegister regs reg) in
             case (RhoCalcHW.integerListToName (RhoCalcHW.toBits (readRegister regs reg))) of
               Just (RhoCalcHW.Code q) -> (writeRegister regs reg (RhoCalcHW.toNumber (RhoCalcHW.procToIntegerList q)))
@@ -350,6 +357,7 @@ data ExecuteState
     | E_Out (Unsigned 64)
     | E_GetP Register (Unsigned 64) Register (Unsigned 64) Register
     | E_Eval Register
+    | E_Stop Register    
     | E_Halt
 
 data WtoE = W_E_Write (Maybe CompletedWrite) | W_E_Halt
@@ -387,7 +395,8 @@ executerUpdate Unused decodedInstr (W_E_Write write) Unused = (state', eToD, req
             JmpZ r dest -> (if r == 0 then E_D_Jump (Ptr dest) else E_D_None, E_Nop)
             Out v       -> (E_D_None, E_Out v)
             GetP a aptr b bptr p -> (E_D_Stall, E_GetP a aptr b bptr p)
-            Eval a      -> (E_D_None, E_Eval a)
+            Eval a      -> (E_D_Stall, E_Eval a)
+            Stop a      -> (E_D_Stall, E_Stop a)            
             Halt        -> (E_D_None, E_Halt) -- Modify this to grab the next process in the process pool, or halt if it's empty
     request = case decodedInstr of
         Just (Load _ ptr) -> Read (Ptr ptr)        
@@ -408,7 +417,8 @@ data WriteState
     = W_Nop
     | W_Out (Unsigned 64)
     | W_GetP (Index 16) (Unsigned 64) (Index 16) (Unsigned 64) (Index 16)
-    | W_Eval (Index 16) 
+    | W_Eval (Index 16)
+    | W_Stop (Index 16)     
     | W_Halt deriving (Generic, Show, Eq)
 
 instance NFData WriteState
@@ -426,11 +436,13 @@ writerUpdate NotHalted executeState Unused fromRAM = (state', wToE, Unused)
         E_Halt                                                 -> W_Halt
         E_GetP (Register p1) v1 (Register p2) v2 (Register p3) -> W_GetP p1 v1 p2 v2 p3
         E_Eval (Register v)                                    -> W_Eval v
+        E_Stop (Register v)                                    -> W_Stop v        
         _                                                      -> W_Nop
     wToE = case executeState of
         E_Store r v           -> W_E_Write (Just (Completed1Write r v))
         E_GetP r1 v1 r2 v2 rp -> W_E_Write (Just (Completed2Write r1 v1 r2 v2 rp))
         E_Eval v              -> W_E_Write (Just (Completed3Write v))
+        E_Stop v              -> W_E_Write (Just (Completed4Write v))        
                         --- TESTME remove this
         E_ReadRAM r -> let Word v = fromRAM in W_E_Write (Just (Completed1Write r v))
         _           -> W_E_Write Nothing
@@ -524,9 +536,6 @@ program1
 
 codeRAM1 :: Vec 1024 Word
 codeRAM1 = fmap encodeInstruction program1 ++ repeat (Word 0)
-
--- poolRAM1 :: Vec 8192 Word
--- poolRAM1 = codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1 ++ codeRAM1
 
 defaultDataRAMChunk :: Vec 2048 Word
 defaultDataRAMChunk = repeat (Word 0)
