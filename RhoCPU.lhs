@@ -522,6 +522,19 @@ program1
     haltAddr = 26
     loopStart = 7
 
+-- program2 :: Vec 40 (Instruction Register)
+-- program2
+--      = LoadIm (Register 3) 0
+--        :> LoadIm (Register 1) 1023
+--        :> Load (Register 2) (Register 1)
+--        :> LoadWP (Register 2) (Register 3) (Register 4)--make loadWP instruction
+--        :> JmpZ (Register 4) (Register 5) --register 5 contains the address of hault
+--        :> Exec (Register 3) --make Exec Instruction
+--        :> Sub (Register 4) 1
+--        :> Jmp (Register 4)
+--        :> Halt
+       
+       
 codeRAM1 :: Vec 1024 Word
 codeRAM1 = fmap encodeInstruction program1 ++ repeat (Word 0)
 
