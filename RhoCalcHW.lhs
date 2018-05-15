@@ -108,7 +108,7 @@ discriminatorW :: RhoProcess -> (BitVector 4)
 popenW :: (BitVector 4)
 pcloseW :: (BitVector 4)
 nopenW :: (BitVector 4)
-nclose :: (BitVector 4)
+ncloseW :: (BitVector 4)
 
 discriminatorW (Reflect Stop)          = 0
 discriminatorW (Reflect (Input _ _ _)) = 1
