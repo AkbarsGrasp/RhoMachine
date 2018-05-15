@@ -283,7 +283,7 @@ procToIntegerList (Reflect (Eval (Code px))) = tag Plude.++ nx
 
 procToWord :: RhoProcess -> (Unsigned 64)
 procToWord (Reflect Stop) = (unpack tag)
-  where tag = (discriminator (Reflect Stop))
+  where tag = (discriminatorW (Reflect Stop))
 procToWord (Reflect (Input (Code px) (Code py) q)) = (unpack (tag ++# nx ++# ny ++# qx))
   where tag = (discriminatorW (Reflect (Input (Code px) (Code py) q)))
         nx  = nopenW ++# (pack (procToWord px)) ++# ncloseW
