@@ -93,21 +93,21 @@ pclose ::  [(Unsigned 64)]
 nopen ::  [(Unsigned 64) ]
 nclose ::  [(Unsigned 64)]
 
-discriminator (Reflect Stop)          = 0 :> 0 :> 0 :> 0
-discriminator (Reflect (Input _ _ _)) = 0 :> 0 :> 0 :> 1
-discriminator (Reflect (Output _ _))  = 0 :> 0 :> 1 :> 0
-discriminator (Reflect (Par _ _))     = 0 :> 0 :> 1 :> 1
-discriminator (Reflect (Eval _))      = 0 :> 1 :> 0 :> 0
+discriminator (Reflect Stop)          = [0, 0, 0, 0]
+discriminator (Reflect (Input _ _ _)) = [0, 0, 0, 1]
+discriminator (Reflect (Output _ _))  = [0, 0, 1, 0]
+discriminator (Reflect (Par _ _))     = [0, 0, 1, 1]
+discriminator (Reflect (Eval _))      = [0, 1, 0, 0]
 
-popen                                 = 0 :> 1 :> 0 :> 1
-pclose                                = 0 :> 1 :> 1 :> 0
-nopen                                 = 0 :> 1 :> 1 :> 1
-nclose                                = 1 :> 0 :> 0 :> 0
+popen                                 = [0, 1, 0, 1]
+pclose                                = [0, 1, 1, 0]
+nopen                                 = [0, 1, 1, 1]
+nclose                                = [1, 0, 0, 0]
 
-discriminator :: RhoProcess -> (BitVector 4)
-popen :: (BitVector 4)
-pclose :: (BitVector 4)
-nopen :: (BitVector 4)
+discriminatorW :: RhoProcess -> (BitVector 4)
+popenW :: (BitVector 4)
+pcloseW :: (BitVector 4)
+nopenW :: (BitVector 4)
 nclose :: (BitVector 4)
 
 discriminatorW (Reflect Stop)          = 0
