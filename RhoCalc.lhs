@@ -228,6 +228,46 @@ procToIntegerList (Reflect (Eval (Code px))) = tag ++ nx
   where tag = (discriminator (Reflect (Eval (Code px))))
         nx  = nopen ++ (procToIntegerList px) ++ nclose
 
+nameToIntegerVec (Code px) = (procToIntegerVec px)
+
+procToIntegerVec (Reflect Stop) = tag 
+  where tag = (discriminator (Reflect Stop))
+procToIntegerVec (Reflect (Input (Code px) (Code py) q)) = tag ++ nx ++ ny ++ qx 
+  where tag = (discriminator (Reflect (Input (Code px) (Code py) q)))
+        nx  = nopen ++ (procToIntegerVec px) ++ nclose
+        ny  = nopen ++ (procToIntegerVec py) ++ nclose
+        qx  = popen ++ (procToIntegerVec (Reflect q)) ++ pclose 
+procToIntegerVec (Reflect (Input (Address a) (Code py) q)) = tag ++ nx ++ ny ++ qx
+  where tag = (discriminator (Reflect (Input (Address a) (Code py) q)))
+        nx  = nopen ++ [a] ++ nclose
+        ny  = nopen ++ (procToIntegerVec py) ++ nclose
+        qx  = popen ++ (procToIntegerVec (Reflect q)) ++ pclose
+procToIntegerVec (Reflect (Input (Code px) (Address a) q)) = tag ++ nx ++ ny ++ qx
+  where tag = (discriminator (Reflect (Input (Code px) (Address a) q)))
+        nx  = nopen ++ (procToIntegerVec px) ++ nclose
+        ny  = nopen ++ [a] ++ nclose
+        qx  = popen ++ (procToIntegerVec (Reflect q)) ++ pclose
+procToIntegerVec (Reflect (Input (Address ax) (Address ay) q)) = tag ++ nx ++ ny ++ qx
+  where tag = (discriminator (Reflect (Input (Address ax) (Address ay) q)))
+        nx  = nopen ++ [ax] ++ nclose
+        ny  = nopen ++ [ay] ++ nclose
+        qx  = popen ++ (procToIntegerVec (Reflect q)) ++ pclose
+procToIntegerVec (Reflect (Output (Code px) q)) = tag ++ nx ++ qx
+  where tag = (discriminator (Reflect (Output (Code px) q)))
+        nx  = nopen ++ (procToIntegerVec px) ++ nclose
+        qx  = popen ++ (procToIntegerVec (Reflect q)) ++ pclose
+procToIntegerVec (Reflect (Output (Address a) q)) = tag ++ nx ++ qx
+  where tag = (discriminator (Reflect (Output (Address a) q)))
+        nx  = nopen ++ [a] ++ nclose
+        qx  = popen ++ (procToIntegerVec (Reflect q)) ++ pclose
+procToIntegerVec (Reflect (Par p q)) = tag ++ px ++ qx
+  where tag = (discriminator (Reflect (Par p q)))
+        px  = popen ++ (procToIntegerVec (Reflect p)) ++ pclose
+        qx  = popen ++ (procToIntegerVec (Reflect q)) ++ pclose
+procToIntegerVec (Reflect (Eval (Code px))) = tag ++ nx
+  where tag = (discriminator (Reflect (Eval (Code px))))
+        nx  = nopen ++ (procToIntegerVec px) ++ nclose                
+
 --        bit string   open paren   close paren   contents & remainder of the string
 unquote :: [Int] -> [Int] -> [Int] -> Maybe ([Int], [Int])
 unquote (a:b:c:d:l) (oa:ob:oc:od:[]) (ca:cb:cc:cd:[]) =
@@ -331,5 +371,39 @@ toBits x = [1] ++ l
         m = (floor (realToFrac d))
         d = (logBase (fromIntegral 2) (fromIntegral x))
         n = (if ((fromIntegral m) == d) then 0 else (length r))
-        r = (toBits (x - m))  
+        r = (toBits (x - m))
+
+surface :: RhoProcess -> [(Name RhoProcess)]
+surface (Reflect Stop) = []
+surface (Reflect (Input (Code px) y q)) = [(Code px)]
+surface (Reflect (Output (Code px) q)) = [(Code px)]
+surface (Reflect (Par p q)) = (surface (Reflect p)) ++ (surface (Reflect q))
+surface (Reflect (Eval n)) = [n]
+
+reveal :: (Name RhoProcess) -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> ((Maybe ((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])),[((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])])
+reveal x [] = (Nothing,[])
+reveal x ((u,dpnds,prods):rs) =
+  if (x == u)
+  then ((Just (u,dpnds,prods)),rs)
+  else let (trpl,rs') = (reveal x rs) in
+         (trpl, [(u,dpnds,prods)] ++ rs')
+
+procToTriple :: RhoProcess -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
+
+procToTriple (Reflect Stop) rspace = rspace
+procToTriple (Reflect (Input x y q)) rspace = prspace ++ (procToTriple (Reflect q) prspace)
+  where prspace                         = [(x, dependents, products)] ++ rspace'
+        dependents                      = [(y, (surface (Reflect q)))] ++ rdepends
+        (rdepends, products, rspace')   = case (reveal x rspace) of
+                                             ((Just (_, rdepends, products)), rspace') ->
+                                               (rdepends, products, rspace')
+                                             (Nothing,_) -> ([],[],rspace)
+procToTriple (Reflect (Output x q)) rspace = prspace ++ (procToTriple (Reflect q) prspace)
+  where prspace                       = [(x, rdepends, products ++ [(Reflect q)])] ++ rspace'
+        (rdepends, products, rspace') = case (reveal x rspace) of
+                                             ((Just (_, rdepends, products)), rspace') ->
+                                               (rdepends, products, rspace')
+                                             (Nothing,_) -> ([],[],rspace)
+procToTriple (Reflect (Par p q)) rspace = (procToTriple (Reflect q) (procToTriple (Reflect p) rspace))
+procToTriple (Reflect (Eval (Code px))) rspace = (procToTriple px rspace)
 \end{code}
