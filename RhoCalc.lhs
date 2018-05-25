@@ -407,9 +407,19 @@ procToTriple (Reflect (Output x q)) rspace = prspace ++ (procToTriple (Reflect q
 procToTriple (Reflect (Par p q)) rspace = (procToTriple (Reflect q) (procToTriple (Reflect p) rspace))
 procToTriple (Reflect (Eval (Code px))) rspace = (procToTriple px rspace)
 
+add :: ((Name RhoProcess),[(Name RhoProcess)]) -> RhoProcess -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
+add _ _ _ = []
+
 meet :: ((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess]) -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
 
-meet _ _ = []
+meet (x,((y,locs):[]),(prdct:[])) rspace =
+  (add (y,locs) prdct rspace)
+meet (x,((y,locs):dpnds),(prdct:[])) rspace =
+  (add (y,locs) prdct rspace) ++ [(x,dpnds,[])]
+meet (x,((y,locs):[]),(prdct:prdcts)) rspace =
+  (add (y,locs) prdct rspace) ++ [(x,[],prdcts)]
+meet (x,((y,locs):dpnds),(prdct:prdcts)) rspace =
+  (meet (x,((y,locs):dpnds),(prdct:prdcts)) ((add (y,locs) prdct rspace) ++ rspace))
 
 reduce :: [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
 
