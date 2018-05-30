@@ -388,6 +388,25 @@ reveal x ((u,dpnds,prods):rs) =
   else let (trpl,rs') = (reveal x rs) in
          (trpl, [(u,dpnds,prods)] ++ rs')
 
+-- [| for( y1 <- x1 ){ y1!( *z1 ) | for( y2 <- z1 ){ output! y2 } } | x1!( *w ) | for( y3 <- w ){ y3!( 5 ) } |]
+-- =
+-- [( x1, [( y1, [y1, z1])], [*w] ), 
+--  ( w, [(y3, [y3])], [] ), 
+--  ( y1, [], [*z1] ),
+--  ( z1, [( y2, [output])], [] )
+--  ( output, [], [y2] )
+--  ( y3 [], [5])]
+-- -> // merge ( w, [(y3, [y3])], [] ) and ( y1, [], [*z1] ), with w replacing y1
+-- [( w, [(y3, [z3])], [*z1] ), 
+--  ( z1, [( y2, [output])], [] )
+--  ( output, [], [y2] )
+--  ( y3 [], [5])]
+-- -> // merge ( z1, [( y2, [output])], [] ) and ( y3 [], [5])
+-- [( z1, [( y2, [output,y3])], [5] )
+--  ( output, [], [y2] )]
+-- -> // substitute y -> 5 into ( output, [], [y2] )
+-- [( output, [], [5] )]
+
 procToTriple :: RhoProcess -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
 
 procToTriple (Reflect Stop) rspace = rspace
