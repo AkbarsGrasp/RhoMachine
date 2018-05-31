@@ -388,6 +388,15 @@ reveal x ((u,dpnds,prods):rs) =
   else let (trpl,rs') = (reveal x rs) in
          (trpl, [(u,dpnds,prods)] ++ rs')
 
+unveil :: (Name RhoProcess) -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> ((Maybe ((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])),[((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])])
+unveil x [] = (Nothing,[])
+unveil x ((u,dpnds,prods):rs) =
+  if (x == u)
+  then ((Just (u,dpnds,prods)),rs)
+  else let (trpl,rs') = (unveil x rs) in
+         (trpl, [(u,dpnds,prods)] ++ rs')         
+
+-- This procedure works
 -- [| for( y1 <- x1 ){ y1!( *z1 ) | for( y2 <- z1 ){ output! y2 } } | x1!( *w ) | for( y3 <- w ){ y3!( 5 ) } |]
 -- =
 -- [( x1, [( y1, [y1, z1])], [*w] ), 
@@ -406,6 +415,11 @@ reveal x ((u,dpnds,prods):rs) =
 --  ( output, [], [y2] )]
 -- -> // substitute y -> 5 into ( output, [], [y2] )
 -- [( output, [], [5] )]
+--
+-- However, if we flip the record of the dependents to have children
+-- point to their parents -- which we calculate at compilation, not in
+-- the hardware -- then we have a much easier time determining which
+-- are entries are redex sites.
 
 procToTriple :: RhoProcess -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
 
@@ -425,6 +439,30 @@ procToTriple (Reflect (Output x q)) rspace = prspace ++ (procToTriple (Reflect q
                                              (Nothing,_) -> ([],[],rspace)
 procToTriple (Reflect (Par p q)) rspace = (procToTriple (Reflect q) (procToTriple (Reflect p) rspace))
 procToTriple (Reflect (Eval (Code px))) rspace = (procToTriple px rspace)
+
+shred :: RhoProcess -> [(Name RhoProcess)] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
+
+shred (Reflect Stop) parents rspace = rspace
+shred (Reflect (Input x y q)) parents rspace = prspace ++ (shred (Reflect q) qprnts prspace)
+  where prspace                         = [(x, xprnts, products)] ++ rspace'
+        qprnts                          = foldl (++) [] (map (\e -> let (mv,ps) = e in ps) xprnts)
+        xprnts                          = [((Just y), parents ++ [x])] ++ xrprnts
+        xrprnts                         = (map (\pair -> let (mv,ps) = pair in (mv,(parents ++ [x] ++ ps))) rprnts) 
+        (rprnts, products, rspace')     = case (unveil x rspace) of
+                                            ((Just (_, rprnts, products)), rspace') ->
+                                              (rprnts, products, rspace')
+                                            (Nothing,_) -> ([],[],rspace)
+shred (Reflect (Output x q)) parents rspace = prspace ++ (shred (Reflect q) qprnts prspace)
+  where prspace                       = [(x, rprnts, products ++ [(Reflect q)])] ++ rspace'
+        qprnts                        = foldl (++) [] (map (\e -> let (mv,ps) = e in ps) xprnts)
+        xprnts                        = [(Nothing, [x] ++ parents)] ++ xrprnts
+        xrprnts                       = (map (\pair -> let (mv,ps) = pair in (mv,(parents ++ [x] ++ ps))) rprnts)
+        (rprnts, products, rspace')   = case (unveil x rspace) of
+                                          ((Just (_, rprnts, products)), rspace') ->
+                                            (rprnts, products, rspace')
+                                          (Nothing,_) -> ([],[],rspace)
+shred (Reflect (Par p q)) parents rspace = (shred (Reflect q) parents (shred (Reflect p) parents rspace))
+shred (Reflect (Eval (Code px))) parents rspace = (shred px parents rspace)
 
 add :: ((Name RhoProcess),[(Name RhoProcess)]) -> RhoProcess -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
 add _ _ _ = []
