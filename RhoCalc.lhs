@@ -416,10 +416,7 @@ unveil x ((u,dpnds,prods):rs) =
 -- -> // substitute y -> 5 into ( output, [], [y2] )
 -- [( output, [], [5] )]
 --
--- However, if we flip the record of the dependents to have children
--- point to their parents -- which we calculate at compilation, not in
--- the hardware -- then we have a much easier time determining which
--- are entries are redex sites.
+
 
 procToTriple :: RhoProcess -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
 
@@ -440,6 +437,36 @@ procToTriple (Reflect (Output x q)) rspace = prspace ++ (procToTriple (Reflect q
 procToTriple (Reflect (Par p q)) rspace = (procToTriple (Reflect q) (procToTriple (Reflect p) rspace))
 procToTriple (Reflect (Eval (Code px))) rspace = (procToTriple px rspace)
 
+react :: ((Name RhoProcess),[(Name RhoProcess)]) -> RhoProcess -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
+react _ _ _ = []
+
+stir :: ((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess]) -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
+
+stir (x,((y,locs):[]),(prdct:[])) rspace =
+  (react (y,locs) prdct rspace)
+stir (x,((y,locs):dpnds),(prdct:[])) rspace =
+  (react (y,locs) prdct rspace) ++ [(x,dpnds,[])]
+stir (x,((y,locs):[]),(prdct:prdcts)) rspace =
+  (react (y,locs) prdct rspace) ++ [(x,[],prdcts)]
+stir (x,((y,locs):dpnds),(prdct:prdcts)) rspace =
+  (stir (x,((y,locs):dpnds),(prdct:prdcts)) ((react (y,locs) prdct rspace) ++ rspace))
+
+simplify :: [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
+
+simplify [] = []
+simplify (t@(x,[],_) : rspace) = [t] ++ (simplify rspace)
+simplify (t@(x,_,[]) : rspace) = [t] ++ (simplify rspace)
+simplify (t@(x,dpnds,prdcts) : rspace) = rspace' ++ (simplify rspace')
+  where rspace' = (stir t rspace)  
+
+-- However, if we flip the record of the dependents to have children
+-- point to their parents -- which we calculate at compilation, not in
+-- the hardware -- then we have a much easier time determining which
+-- are entries are redex sites. The function shred does this.
+
+-- The function shred should be convertible into a fold, which makes
+-- it potentially synthesizable. However, this is a compilation phase
+-- computation and so doesn't have to be realized in hardware.
 shred :: RhoProcess -> [(Name RhoProcess)] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
 
 shred (Reflect Stop) parents rspace = rspace
