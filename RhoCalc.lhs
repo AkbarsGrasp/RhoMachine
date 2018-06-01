@@ -406,7 +406,7 @@ unveil x ((u,dpnds,prods):rs) =
 --  ( output, [], [y2] )
 --  ( y3 [], [5])]
 -- -> // merge ( w, [(y3, [y3])], [] ) and ( y1, [], [*z1] ), with w replacing y1
--- [( w, [(y3, [z3])], [*z1] ), 
+-- [( w, [(y3, [y3])], [*z1] ), 
 --  ( z1, [( y2, [output])], [] )
 --  ( output, [], [y2] )
 --  ( y3 [], [5])]
@@ -491,10 +491,15 @@ shred (Reflect (Output x q)) parents rspace = prspace ++ (shred (Reflect q) qprn
 shred (Reflect (Par p q)) parents rspace = (shred (Reflect q) parents (shred (Reflect p) parents rspace))
 shred (Reflect (Eval (Code px))) parents rspace = (shred px parents rspace)
 
-add :: ((Name RhoProcess),[(Name RhoProcess)]) -> RhoProcess -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
+add :: ((Maybe (Name RhoProcess)),[(Name RhoProcess)]) -> RhoProcess -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
+add ((Just y),[]) p rspace =
+  case (unveil y rspace) of
+    ((Just (y,dpnds,prods)),rs) ->
+      rs ++ [((Code p),dpnds,prods)]
+    (Nothing,rs) -> rspace
 add _ _ _ = []
 
-meet :: ((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess]) -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
+meet :: ((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess]) -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
 
 meet (x,((y,locs):[]),(prdct:[])) rspace =
   (add (y,locs) prdct rspace)
@@ -505,7 +510,7 @@ meet (x,((y,locs):[]),(prdct:prdcts)) rspace =
 meet (x,((y,locs):dpnds),(prdct:prdcts)) rspace =
   (meet (x,((y,locs):dpnds),(prdct:prdcts)) ((add (y,locs) prdct rspace) ++ rspace))
 
-reduce :: [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
+reduce :: [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
 
 reduce [] = []
 reduce (t@(x,[],_) : rspace) = [t] ++ (reduce rspace)
