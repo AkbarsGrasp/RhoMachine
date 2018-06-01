@@ -491,30 +491,31 @@ shred (Reflect (Output x q)) parents rspace = prspace ++ (shred (Reflect q) qprn
 shred (Reflect (Par p q)) parents rspace = (shred (Reflect q) parents (shred (Reflect p) parents rspace))
 shred (Reflect (Eval (Code px))) parents rspace = (shred px parents rspace)
 
-add :: ((Maybe (Name RhoProcess)),[(Name RhoProcess)]) -> RhoProcess -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
-add ((Just y),[]) p rspace =
+greet :: ((Maybe (Name RhoProcess)),[(Name RhoProcess)]) -> RhoProcess -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
+greet ((Just y),[]) p rspace =
   case (unveil y rspace) of
     ((Just (y,dpnds,prods)),rs) ->
       rs ++ [((Code p),dpnds,prods)]
-    (Nothing,rs) -> rspace
-add _ _ _ = []
+    (Nothing,rs) -> rs ++ [((Code p),[],[])]
+greet _ _ rspace = rspace
 
 meet :: ((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess]) -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
 
-meet (x,((y,locs):[]),(prdct:[])) rspace =
-  (add (y,locs) prdct rspace)
-meet (x,((y,locs):dpnds),(prdct:[])) rspace =
-  (add (y,locs) prdct rspace) ++ [(x,dpnds,[])]
-meet (x,((y,locs):[]),(prdct:prdcts)) rspace =
-  (add (y,locs) prdct rspace) ++ [(x,[],prdcts)]
-meet (x,((y,locs):dpnds),(prdct:prdcts)) rspace =
-  (meet (x,((y,locs):dpnds),(prdct:prdcts)) ((add (y,locs) prdct rspace) ++ rspace))
+meet (x,(ylocs@((Just y),[]):[]),(prdct:[])) rspace = (greet ylocs prdct rspace)
+meet t@(x,((my,(d:ds)):[]),(prdct:[])) rspace = [t]
+meet (x,(ylocs@((Just y),[]):dpnds),(prdct:[])) rspace = (greet ylocs prdct rspace) ++ [(x,dpnds,[])]
+meet t@(x,(ylocs@(my,(d:ds)):dpnds),(prdct:[])) rspace = [t]
+meet (x,(ylocs@((Just y),[]):[]),(prdct:prdcts)) rspace = (greet ylocs prdct rspace) ++ [(x,[],prdcts)]
+meet t@(x,(ylocs@(my,(d:ds)):[]),(prdct:prdcts)) rspace = [t]
+meet (x,(ylocs@((Just y),[]):dpnds),(prdct:prdcts)) rspace =
+  (meet (x,(ylocs:dpnds),(prdct:prdcts)) ((greet ylocs prdct rspace) ++ rspace))
+meet t@(x,(ylocs@(my,(d:ds)):dpnds),(prdct:prdcts)) rspace = [t]
 
 reduce :: [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
 
 reduce [] = []
 reduce (t@(x,[],_) : rspace) = [t] ++ (reduce rspace)
 reduce (t@(x,_,[]) : rspace) = [t] ++ (reduce rspace)
-reduce (t@(x,dpnds,prdcts) : rspace) = rspace' ++ (reduce rspace')
+reduce (t@(x,dpnds,prdcts) : rspace) = rspace' ++ (reduce rspace)
   where rspace' = (meet t rspace)
 \end{code}
