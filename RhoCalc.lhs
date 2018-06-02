@@ -380,21 +380,13 @@ surface (Reflect (Output (Code px) q)) = [(Code px)]
 surface (Reflect (Par p q)) = (surface (Reflect p)) ++ (surface (Reflect q))
 surface (Reflect (Eval n)) = [n]
 
-reveal :: (Name RhoProcess) -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> ((Maybe ((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])),[((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])])
-reveal x [] = (Nothing,[])
-reveal x ((u,dpnds,prods):rs) =
+expose :: (Name RhoProcess) -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> ((Maybe ((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])),[((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])])
+expose x [] = (Nothing,[])
+expose x ((u,dpnds,prods):rs) =
   if (x == u)
   then ((Just (u,dpnds,prods)),rs)
-  else let (trpl,rs') = (reveal x rs) in
+  else let (trpl,rs') = (expose x rs) in
          (trpl, [(u,dpnds,prods)] ++ rs')
-
-unveil :: (Name RhoProcess) -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> ((Maybe ((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])),[((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])])
-unveil x [] = (Nothing,[])
-unveil x ((u,dpnds,prods):rs) =
-  if (x == u)
-  then ((Just (u,dpnds,prods)),rs)
-  else let (trpl,rs') = (unveil x rs) in
-         (trpl, [(u,dpnds,prods)] ++ rs')         
 
 -- This procedure works
 -- [| for( y1 <- x1 ){ y1!( *z1 ) | for( y2 <- z1 ){ output! y2 } } | x1!( *w ) | for( y3 <- w ){ y3!( 5 ) } |]
@@ -424,13 +416,13 @@ procToTriple (Reflect Stop) rspace = rspace
 procToTriple (Reflect (Input x y q)) rspace = prspace ++ (procToTriple (Reflect q) prspace)
   where prspace                         = [(x, dependents, products)] ++ rspace'
         dependents                      = [(y, (surface (Reflect q)))] ++ rdepends
-        (rdepends, products, rspace')   = case (reveal x rspace) of
+        (rdepends, products, rspace')   = case (expose x rspace) of
                                              ((Just (_, rdepends, products)), rspace') ->
                                                (rdepends, products, rspace')
                                              (Nothing,_) -> ([],[],rspace)
 procToTriple (Reflect (Output x q)) rspace = prspace ++ (procToTriple (Reflect q) prspace)
   where prspace                       = [(x, rdepends, products ++ [(Reflect q)])] ++ rspace'
-        (rdepends, products, rspace') = case (reveal x rspace) of
+        (rdepends, products, rspace') = case (expose x rspace) of
                                              ((Just (_, rdepends, products)), rspace') ->
                                                (rdepends, products, rspace')
                                              (Nothing,_) -> ([],[],rspace)
@@ -467,6 +459,22 @@ simplify (t@(x,dpnds,prdcts) : rspace) = rspace' ++ (simplify rspace')
 -- The function shred should be convertible into a fold, which makes
 -- it potentially synthesizable. However, this is a compilation phase
 -- computation and so doesn't have to be realized in hardware.
+
+reveal :: (Name RhoProcess) -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> ((Maybe ((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])),[((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])])
+reveal x [] = (Nothing,[])
+reveal x ((u,dpnds,prods):rs) =
+  if (x == u)
+  then ((Just (u,dpnds,prods)),rs)
+  else let (trpl,rs') = (reveal x rs) in
+         (trpl, [(u,dpnds,prods)] ++ rs')
+
+inform :: (Name RhoProcess) -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> ([((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])],[((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])])
+inform x _ [] = ([],[])
+inform x@(Code px) acc ((u,dpnds,prods):rs) =
+  if (elem px prods)
+  then let (acc',rs') = (inform x acc rs) in (([(u,dpnds,prods)] ++ acc'), rs')
+  else let (acc',rs') = (inform x acc rs) in (acc', [(u,dpnds,prods)] ++ rs')                  
+
 shred :: RhoProcess -> [(Name RhoProcess)] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
 
 shred (Reflect Stop) parents rspace = rspace
@@ -475,7 +483,7 @@ shred (Reflect (Input x y q)) parents rspace = prspace ++ (shred (Reflect q) qpr
         qprnts                          = foldl (++) [] (map (\e -> let (mv,ps) = e in ps) xprnts)
         xprnts                          = [((Just y), parents ++ [x])] ++ xrprnts
         xrprnts                         = (map (\pair -> let (mv,ps) = pair in (mv,(parents ++ [x] ++ ps))) rprnts) 
-        (rprnts, products, rspace')     = case (unveil x rspace) of
+        (rprnts, products, rspace')     = case (reveal x rspace) of
                                             ((Just (_, rprnts, products)), rspace') ->
                                               (rprnts, products, rspace')
                                             (Nothing,_) -> ([],[],rspace)
@@ -484,18 +492,24 @@ shred (Reflect (Output x q)) parents rspace = prspace ++ (shred (Reflect q) qprn
         qprnts                        = foldl (++) [] (map (\e -> let (mv,ps) = e in ps) xprnts)
         xprnts                        = [(Nothing, [x] ++ parents)] ++ xrprnts
         xrprnts                       = (map (\pair -> let (mv,ps) = pair in (mv,(parents ++ [x] ++ ps))) rprnts)
-        (rprnts, products, rspace')   = case (unveil x rspace) of
+        (rprnts, products, rspace')   = case (reveal x rspace) of
                                           ((Just (_, rprnts, products)), rspace') ->
                                             (rprnts, products, rspace')
                                           (Nothing,_) -> ([],[],rspace)
 shred (Reflect (Par p q)) parents rspace = (shred (Reflect q) parents (shred (Reflect p) parents rspace))
 shred (Reflect (Eval (Code px))) parents rspace = (shred px parents rspace)
 
+swap :: (Name RhoProcess) -> (Name RhoProcess) -> [RhoProcess] -> [RhoProcess]
+swap (Code q) (Code p) [] = []
+swap y@(Code q) x@(Code p) (r:rs) = [r'] ++ (swap y x rs)
+  where r' = (if (p == r) then q else r)
+
 greet :: ((Maybe (Name RhoProcess)),[(Name RhoProcess)]) -> RhoProcess -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
-greet ((Just y),[]) p rspace =
-  case (unveil y rspace) of
+greet ((Just y),[]) p rspace = 
+  case (reveal y rspace) of
     ((Just (y,dpnds,prods)),rs) ->
-      rs ++ [((Code p),dpnds,prods)]
+      let (trps,rs') = (inform y [] rs) in
+        rs' ++ (map (\trpl -> let (z,dpnds,prods) = trpl in (z,dpnds,(swap (Code p) y prods))) trps)      
     (Nothing,rs) -> rs ++ [((Code p),[],[])]
 greet _ _ rspace = rspace
 
