@@ -33,7 +33,11 @@ module RhoCalc(
 import Data.Ord
 import Data.List
 
-    
+\end{code}
+
+== The core data types
+
+\begin{code}       
 class Nominal n where
   code :: p -> n p
 
@@ -64,6 +68,11 @@ instance Behavioral Name RhoProcess where
   par (Reflect p) (Reflect q) = Reflect  (Par p q)
   eval x = Reflect (Eval x)
 
+\end{code}
+
+== Arithmetic encodings
+
+\begin{code}
 procToIntegerList :: RhoProcess -> [Int]
 discriminator :: RhoProcess -> [Int]
 popen :: [Int]
@@ -372,7 +381,11 @@ toBits x = [1] ++ l
         d = (logBase (fromIntegral 2) (fromIntegral x))
         n = (if ((fromIntegral m) == d) then 0 else (length r))
         r = (toBits (x - m))
+\end{code}
 
+== New execution model
+
+\begin{code}
 surface :: RhoProcess -> [(Name RhoProcess)]
 surface (Reflect Stop) = []
 surface (Reflect (Input (Code px) y q)) = [(Code px)]
@@ -409,6 +422,53 @@ expose x ((u,dpnds,prods):rs) =
 -- [( output, [], [5] )]
 --
 
+exampleProc1 :: (Name RhoProcess) -> (Name RhoProcess) -> (Name RhoProcess) -> (Name RhoProcess) -> (Name RhoProcess) -> (Name RhoProcess) -> (Name RhoProcess) -> (Name RhoProcess) -> RhoProcess
+exampleProc1 w x1 y1 y2 y3 z1 u5 out = (Reflect p)
+  where p  = (Par i1 p1)
+        i1 = (Input x1 y1 p2)
+        p1 = (Par o1 i2)
+        p2 = (Par o2 i3)
+        o1 = (Output x1 (Eval w))
+        i2 = (Input y3 w o3)
+        o2 = (Output y1 (Eval z1))
+        o3 = (Output y3 (Eval u5))
+        i3 = (Input z1 y2 o4)
+        o4 = (Output out (Eval y2))
+
+rpz   :: RhoProcess
+rpz   = Reflect Stop
+rpzn  :: Name RhoProcess
+rpzn  = Code rpz
+rpi1  :: RhoProcess      
+rpi1  = Reflect (Input rpzn rpzn Stop)
+rpi1n :: Name RhoProcess 
+rpi1n = Code rpi1
+rpo1  :: RhoProcess      
+rpo1  = Reflect (Output rpzn Stop)
+rpo1n :: Name RhoProcess 
+rpo1n = Code rpo1
+rpp1  :: RhoProcess      
+rpp1  = Reflect (Par (let (Reflect p) = rpi1 in p) (let (Reflect p) = rpi1 in p))
+rpp1n :: Name RhoProcess 
+rpp1n = Code rpp1
+rpp2  :: RhoProcess      
+rpp2  = Reflect (Par (let (Reflect p) = rpi1 in p) (Par (let (Reflect p) = rpi1 in p) (let (Reflect p) = rpi1 in p)))
+rpp2n :: Name RhoProcess
+rpp2n = Code rpp2
+rpp3  :: RhoProcess     
+rpp3  = Reflect (Par (let (Reflect p) = rpo1 in p) (let (Reflect p) = rpo1 in p))
+rpp3n :: Name RhoProcess 
+rpp3n = Code rpp3
+rpp4  :: RhoProcess
+rpp4  = Reflect (Par (let (Reflect p) = rpo1 in p) (Par (let (Reflect p) = rpo1 in p) (let (Reflect p) = rpo1 in p)))
+rpp4n :: Name RhoProcess
+rpp4n = Code rpp4
+rpp5  :: RhoProcess
+rpp5  = Reflect (Par (let (Reflect p) = rpi1 in p) (let (Reflect p) = rpo1 in p))
+rpp5n = Code rpp5
+
+tp1   :: RhoProcess
+tp1   = exampleProc1 rpzn rpi1n rpo1n rpp1n rpp2n rpp3n rpp4n rpp5n
 
 procToTriple :: RhoProcess -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])]
 
