@@ -397,7 +397,7 @@ toBits x = [1] ++ l
 --   code p = Sign { mark = (sign p), name = Code p }
 
 instance Show (Name RhoProcess) where
-  show (Code p) = (show (toNumber (procToIntegerList p)))
+  show (Code p) = "@" ++ (show (toNumber (procToIntegerList p)))
 
 \end{code}
 
@@ -556,7 +556,7 @@ inform x@(Code px) acc ((u,dpnds,prods):rs) =
 shred :: RhoProcess -> [(Name RhoProcess)] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
 
 shred (Reflect Stop) parents rspace = rspace
-shred (Reflect (Input x y q)) parents rspace = prspace ++ (shred (Reflect q) qprnts prspace)
+shred (Reflect (Input x y q)) parents rspace = (shred (Reflect q) qprnts prspace)
   where prspace                         = [(x, xprnts, products)] ++ rspace'
         qprnts                          = foldl (++) [] (map (\e -> let (mv,ps) = e in ps) xprnts)
         xprnts                          = [((Just y), parents ++ [x])] ++ xrprnts
@@ -564,8 +564,8 @@ shred (Reflect (Input x y q)) parents rspace = prspace ++ (shred (Reflect q) qpr
         (rprnts, products, rspace')     = case (reveal x rspace) of
                                             ((Just (_, rprnts, products)), rspace') ->
                                               (rprnts, products, rspace')
-                                            (Nothing,_) -> ([],[],rspace)
-shred (Reflect (Output x q)) parents rspace = prspace ++ (shred (Reflect q) qprnts prspace)
+                                            (Nothing,rspace') -> ([],[],rspace')
+shred (Reflect (Output x q)) parents rspace = (shred (Reflect q) qprnts prspace)
   where prspace                       = [(x, rprnts, products ++ [(Reflect q)])] ++ rspace'
         qprnts                        = foldl (++) [] (map (\e -> let (mv,ps) = e in ps) xprnts)
         xprnts                        = [(Nothing, [x] ++ parents)] ++ xrprnts
@@ -573,7 +573,7 @@ shred (Reflect (Output x q)) parents rspace = prspace ++ (shred (Reflect q) qprn
         (rprnts, products, rspace')   = case (reveal x rspace) of
                                           ((Just (_, rprnts, products)), rspace') ->
                                             (rprnts, products, rspace')
-                                          (Nothing,_) -> ([],[],rspace)
+                                          (Nothing,rspace') -> ([],[],rspace')
 shred (Reflect (Par p q)) parents rspace = (shred (Reflect q) parents (shred (Reflect p) parents rspace))
 shred (Reflect (Eval (Code px))) parents rspace = (shred px parents rspace)
 
