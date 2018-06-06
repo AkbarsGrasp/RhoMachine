@@ -26,12 +26,12 @@ module RhoCalc(
   ,getNameCenter
   )
   where
--- import Debug.Trace
--- tracey :: Show a => [Char] -> a -> a
--- tracey name x = trace (name ++ ": " ++ show x) x
-
 import Data.Ord
 import Data.List
+
+import Debug.Trace
+tracey :: Show a => [Char] -> a -> a
+tracey name x = trace ("\n" ++ name ++ ": " ++ show x) x
 
 \end{code}
 
@@ -609,5 +609,5 @@ reduce [] = []
 reduce (t@(x,[],_) : rspace) = [t] ++ (reduce rspace)
 reduce (t@(x,_,[]) : rspace) = [t] ++ (reduce rspace)
 reduce (t@(x,dpnds,prdcts) : rspace) = rspace' ++ (reduce rspace)
-  where rspace' = (meet t rspace)
+  where rspace' = (meet (tracey "reducing" t) rspace)
 \end{code}
