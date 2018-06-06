@@ -37,11 +37,16 @@ import Data.List
 
 == The core data types
 
-\begin{code}       
-class Nominal n where
-  code :: p -> n p
+\begin{code}
+class Signifier x where
+  sign :: x -> String
 
-data Name p = Address Int | Code p deriving (Eq,Show)
+class Nominal n where
+  code :: (Signifier p) => p -> n p
+
+data Name p = Address Int | Code p deriving (Eq)
+
+-- data Sign p = Sign { mark :: String, name :: (Name p) } deriving (Eq,Show)
 
 instance Nominal Name where
   code = Code
@@ -67,6 +72,15 @@ instance Behavioral Name RhoProcess where
   output x (Reflect q) = Reflect (Output x q)
   par (Reflect p) (Reflect q) = Reflect  (Par p q)
   eval x = Reflect (Eval x)
+
+-- data RhoSignalProcess = Mirror (Process (Sign RhoSignalProcess)) deriving (Eq,Show)  
+
+-- instance Behavioral Sign RhoSignalProcess where
+--   zero = Mirror Stop
+--   input x y (Mirror p) = Mirror (Input x y p)
+--   output x (Mirror q) = Mirror (Output x q)
+--   par (Mirror p) (Mirror q) = Mirror  (Par p q)
+--   eval x = Mirror (Eval x)  
 
 \end{code}
 
@@ -117,12 +131,6 @@ substitute (Reflect (Par p q)) y x = (Reflect (Par p' q'))
         (Reflect q') = (substitute (Reflect q) y x)
 substitute (Reflect (Eval a)) y x = (Reflect (Eval a'))
   where a' = (if (a == x) then y else a)
-
--- todo
--- toBits :: Int -> [Int]
--- toNumber :: [Int] -> Int
--- toBits n = []
--- toNumber l = 0
 
 deBruijnify :: RhoProcess -> Int -> Int -> Int -> RhoProcess
 deBruijnify (Reflect Stop) l w h = (Reflect Stop)
@@ -381,6 +389,16 @@ toBits x = [1] ++ l
         d = (logBase (fromIntegral 2) (fromIntegral x))
         n = (if ((fromIntegral m) == d) then 0 else (length r))
         r = (toBits (x - m))
+
+-- instance Signifier RhoProcess where
+--   sign = show . toNumber . procToIntegerList
+
+-- instance Nominal Sign where
+--   code p = Sign { mark = (sign p), name = Code p }
+
+instance Show (Name RhoProcess) where
+  show (Code p) = (show (toNumber (procToIntegerList p)))
+
 \end{code}
 
 == New execution model
