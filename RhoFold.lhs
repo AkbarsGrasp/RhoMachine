@@ -587,29 +587,6 @@ reduce (t@(x,dpnds,prdcts) : rspace) = rspace' H.++ (reduce rspace)
 \end{code}
 
 \begin{code}
-data RhoEntry = RhoEntry { 
-  name :: (Name RhoProcess), 
-  dpnds :: [((Maybe (Name RhoProcess)), [(Name RhoProcess)])],
-  prdcts :: [([(Name RhoProcess)], RhoProcess)] 
-} deriving (Eq, Show)
-data RhoTable = RhoTable { entries :: [RhoEntry], next :: RhoTable } deriving (Eq, Show)
-
-revealT :: (Name RhoProcess) -> RhoTable -> ((Maybe RhoEntry),RhoTable)
-revealT x rTbl = (mEntry, RhoTable { entries = ents, next = (next rTbl) })
-  where (mEntry,ents) = 
-          (case (DL.partition (\e -> ((name e) == x)) (entries rTbl)) of
-              ([],outs) -> (Nothing,outs)
-              ((e:es),outs) -> ((Just e), outs))
-
-informT :: (Name RhoProcess) -> RhoTable ->  (RhoTable,RhoTable)
-informT x@(Code px) rTbl = (rTblIn, rTblOut)
-  where (rTblIn, rTblOut) =
-          case (DL.partition (\e -> (DL.elem px (DL.map (\(ePrns,ePrds) -> ePrds) (prdcts e)))) (entries rTbl)) of
-            (ins,outs) -> 
-              (RhoTable { entries = ins, next = (next rTbl) },RhoTable { entries = outs, next = (next rTbl) })
-\end{code}
-
-\begin{code}
 newtype Word = Word (Unsigned 64) deriving Show
 \end{code}
 
@@ -630,6 +607,30 @@ length of name map
 : pointer to next table entry
 
 Then a pointer to a table entry becomes a pointer to a process.
+
+\begin{code}
+data RhoEntry = RhoEntry { 
+  name :: (Name RhoProcess), 
+  dpnds :: [((Maybe (Name RhoProcess)), [(Name RhoProcess)])],
+  prdcts :: [([(Name RhoProcess)], RhoProcess)] 
+} deriving (Eq, Show)
+data RhoTable = RhoTable { entries :: [RhoEntry], next :: RhoTable, p :: RhoProcess } deriving (Eq, Show)
+
+revealT :: (Name RhoProcess) -> RhoTable -> ((Maybe RhoEntry),RhoTable)
+revealT x rTbl = (mEntry, RhoTable { entries = ents, next = (next rTbl), p = (p rTbl) })
+  where (mEntry,ents) = 
+          (case (DL.partition (\e -> ((name e) == x)) (entries rTbl)) of
+              ([],outs) -> (Nothing,outs)
+              ((e:es),outs) -> ((Just e), outs))
+
+informT :: (Name RhoProcess) -> RhoTable ->  (RhoTable,RhoTable)
+informT x@(Code px) rTbl = (rTblIn, rTblOut)
+  where (rTblIn, rTblOut) =
+          case (DL.partition (\e -> (DL.elem px (DL.map (\(ePrns,ePrds) -> ePrds) (prdcts e)))) (entries rTbl)) of
+            (ins,outs) -> 
+              (RhoTable { entries = ins, next = (next rTbl), p = (p rTbl) },RhoTable { entries = outs, next = (next rTbl), p = (p rTbl) })
+\end{code}
+
 \begin{code}
 loadDpnd :: [Word] -> ((Maybe (Name RhoProcess)), [(Name RhoProcess)]) -> [Word]
 loadDpnd acc (mx,parents) = acc DL.++ [(Word (prntlSz + 1))] DL.++ [(Word vn)] DL.++ prnts
@@ -654,6 +655,35 @@ rcrdToRAM  (nameAddrMap, ram) (x,dpnds,prdcts) = (nameAddrMap', ram')
 tblToRAM :: [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> ([((Name RhoProcess),(Unsigned 64))],[Word])
 
 tblToRAM rspace = (DL.foldl rcrdToRAM ([],[]) rspace)
+\end{code}
 
-    
+\begin{code}
+loadDpndT :: [Word] -> ((Maybe (Name RhoProcess)), [(Name RhoProcess)]) -> [Word]
+loadDpndT acc (mx,parents) = acc DL.++ [(Word (prntlSz + 1))] DL.++ [(Word vn)] DL.++ prnts
+  where prntlSz = (H.fromIntegral (length parents))
+        prnts   = (DL.map (\(Code p) -> (Word (procToNumber p))) parents)        
+        vn      = (case mx of (Just (Code x)) -> ((procToNumber x) + 1); Nothing -> 0)
+
+loadDpndsT :: RhoEntry -> [Word]
+loadDpndsT rEntry = (DL.foldl loadDpndT [] (dpnds rEntry))
+
+loadPrdctT :: [Word] -> ([(Name RhoProcess)], RhoProcess) -> [Word]
+loadPrdctT acc (parents,prdct) = acc DL.++ [(Word (prntlSz + 1))] DL.++ prnts DL.++ [(Word (procToNumber prdct))]
+  where prntlSz = (H.fromIntegral (length parents))
+        prnts   = (DL.map (\(Code p) -> (Word (procToNumber p))) parents)        
+
+loadPrdctsT :: RhoEntry -> [Word]
+loadPrdctsT rEntry = (DL.foldl loadPrdctT [] (prdcts rEntry))
+
+rcrdToRAMT :: ([((Name RhoProcess),(Unsigned 64))],[Word]) -> RhoEntry -> ([((Name RhoProcess),(Unsigned 64))],[Word])
+rcrdToRAMT  (nameAddrMap, ram) rEntry = (nameAddrMap', ram')
+  where dpndLn       = H.fromIntegral (length (dpnds rEntry))
+        prdctsLn     = H.fromIntegral (length (prdcts rEntry))
+        nIdx         = H.fromIntegral ((length ram) + 1)
+        nameAddrMap' = (nameAddrMap DL.++ [((name rEntry),nIdx)])
+        ram' = ram DL.++ [(Word dpndLn),(Word prdctsLn)] DL.++ (loadDpndsT rEntry) DL.++ (loadPrdctsT rEntry)
+
+-- To do: walk the pointers to next table
+tblToRAMT :: RhoTable -> ([((Name RhoProcess),(Unsigned 64))],[Word])
+tblToRAMT rspace = (DL.foldl rcrdToRAMT ([],[]) (entries rspace))    
 \end{code}
