@@ -511,14 +511,6 @@ surface (Reflect (Output (Code px) q)) = [(Code px)]
 surface (Reflect (Par p q)) = (surface (Reflect p)) H.++ (surface (Reflect q))
 surface (Reflect (Eval n)) = [n]
 
-expose :: (Name RhoProcess) -> [((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])] -> ((Maybe ((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])),[((Name RhoProcess), [((Name RhoProcess),[(Name RhoProcess)])],[RhoProcess])])
-expose x [] = (Nothing,[])
-expose x ((u,dpnds,prods):rs) =
-  if (x == u)
-  then ((Just (u,dpnds,prods)),rs)
-  else let (trpl,rs') = (expose x rs) in
-         (trpl, [(u,dpnds,prods)] H.++ rs')
-
 reveal :: (Name RhoProcess) -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> ((Maybe ((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])),[((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])])
 reveal x [] = (Nothing,[])
 reveal x ((u,dpnds,prods):rs) =
@@ -592,6 +584,29 @@ reduce (t@(x,[],_) : rspace) = [t] H.++ (reduce rspace)
 reduce (t@(x,_,[]) : rspace) = [t] H.++ (reduce rspace)
 reduce (t@(x,dpnds,prdcts) : rspace) = rspace' H.++ (reduce rspace)
   where rspace' = (meet t rspace)
+\end{code}
+
+\begin{code}
+data RhoEntry = RhoEntry { 
+  name :: (Name RhoProcess), 
+  dpnds :: [((Maybe (Name RhoProcess)), [(Name RhoProcess)])],
+  prdcts :: [([(Name RhoProcess)], RhoProcess)] 
+} deriving (Eq, Show)
+data RhoTable = RhoTable { entries :: [RhoEntry], next :: RhoTable } deriving (Eq, Show)
+
+revealT :: (Name RhoProcess) -> RhoTable -> ((Maybe RhoEntry),RhoTable)
+revealT x rTbl = (mEntry, RhoTable { entries = ents, next = (next rTbl) })
+  where (mEntry,ents) = 
+          (case (DL.partition (\e -> ((name e) == x)) (entries rTbl)) of
+              ([],outs) -> (Nothing,outs)
+              ((e:es),outs) -> ((Just e), outs))
+
+informT :: (Name RhoProcess) -> RhoTable ->  (RhoTable,RhoTable)
+informT x@(Code px) rTbl = (rTblIn, rTblOut)
+  where (rTblIn, rTblOut) =
+          case (DL.partition (\e -> (DL.elem px (DL.map (\(ePrns,ePrds) -> ePrds) (prdcts e)))) (entries rTbl)) of
+            (ins,outs) -> 
+              (RhoTable { entries = ins, next = (next rTbl) },RhoTable { entries = outs, next = (next rTbl) })
 \end{code}
 
 \begin{code}
