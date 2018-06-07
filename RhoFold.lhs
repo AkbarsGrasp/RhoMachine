@@ -614,7 +614,14 @@ data RhoEntry = RhoEntry {
   dpnds :: [((Maybe (Name RhoProcess)), [(Name RhoProcess)])],
   prdcts :: [([(Name RhoProcess)], RhoProcess)] 
 } deriving (Eq, Show)
-data RhoTable = RhoTable { entries :: [RhoEntry], next :: RhoTable, p :: RhoProcess } deriving (Eq, Show)
+
+nilRhoEntry :: RhoEntry
+nilRhoEntry = RhoEntry { name = (Code (Reflect Stop)), dpnds = [], prdcts = [] }
+
+data RhoTable = RhoTable { entries :: [RhoEntry], next :: RhoTable, p :: (Unsigned 64) } deriving (Eq, Show)
+
+nilRhoTable :: RhoTable
+nilRhoTable = RhoTable { entries = [], next = nilRhoTable, p = 0 }
 
 revealT :: (Name RhoProcess) -> RhoTable -> ((Maybe RhoEntry),RhoTable)
 revealT x rTbl = (mEntry, RhoTable { entries = ents, next = (next rTbl), p = (p rTbl) })
@@ -658,6 +665,37 @@ tblToRAM rspace = (DL.foldl rcrdToRAM ([],[]) rspace)
 \end{code}
 
 \begin{code}
+shredT :: RhoProcess -> [(Name RhoProcess)] -> RhoTable -> RhoTable
+
+shredT (Reflect Stop) parents rspace = rspace
+shredT p@(Reflect (Input x y q)) parents rspace = (shredT (Reflect q) qprnts prspace)
+  where prspace = RhoTable { entries = ([xEntry] DL.++ (entries rspace')), p = (procToNumber p), next = nilRhoTable }        
+        (xEntry, rspace') = (case (revealT x rspace) of
+                               ((Just entry), rspace') ->
+                                 (let xEntry = RhoEntry { name = x, 
+                                                          dpnds = ((dpnds entry) DL.++ [((Just y), qprnts)]),
+                                                          prdcts = (prdcts entry) } in 
+                                    (xEntry, rspace'))
+                               (Nothing,rspace') -> 
+                                 (let xEntry = RhoEntry { name = x, dpnds = [((Just y), qprnts)], prdcts = [] } in
+                                    (xEntry,rspace')))
+        qprnts            = parents DL.++ [x]  
+
+shredT p@(Reflect (Output x q)) parents rspace = 
+  let prspace = RhoTable { entries = [xEntry] H.++ (entries rspace'), p = (procToNumber p), next = nilRhoTable }
+      qprnts = (parents DL.++ [x])
+      (xEntry, rspace') = (case (revealT x rspace) of
+                              ((Just entry), rspace') ->
+                                (let xEntry = RhoEntry { name = x, dpnds = (dpnds entry), prdcts = (prdcts entry) DL.++ [(qprnts,(Reflect q))] } in (xEntry, rspace'))
+                              (Nothing,rspace') ->
+                                (let xEntry = RhoEntry { name = x, dpnds = [], prdcts = [(qprnts,(Reflect q))] } in (xEntry,rspace'))) in
+        (shredT (Reflect q) qprnts prspace)
+shredT (Reflect (Par p q)) parents rspace = RhoTable { entries = (entries pTbl), p = (procToNumber (Reflect p)), next = qTbl }
+  where pTbl = (shredT (Reflect p) parents rspace)
+        qTbl = (shredT (Reflect q) parents rspace)
+shredT p@(Reflect (Eval (Code px))) parents rspace = RhoTable { entries = [], p = (procToNumber p), next = pxTbl }
+  where pxTbl = (shredT px parents rspace)
+
 loadDpndT :: [Word] -> ((Maybe (Name RhoProcess)), [(Name RhoProcess)]) -> [Word]
 loadDpndT acc (mx,parents) = acc DL.++ [(Word (prntlSz + 1))] DL.++ [(Word vn)] DL.++ prnts
   where prntlSz = (H.fromIntegral (length parents))
