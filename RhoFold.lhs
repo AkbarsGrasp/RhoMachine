@@ -596,8 +596,26 @@ reduce (t@(x,dpnds,prdcts) : rspace) = rspace' H.++ (reduce rspace)
 
 \begin{code}
 newtype Word = Word (Unsigned 64) deriving Show
+\end{code}
 
--- To do: this is still only an approximation as we need to put in a *pointer* rather than procToNumber
+To do: this is still only an approximation as we need to put in a
+*pointer* rather than procToNumber in order to do this we have to
+resolve an issue with the table representation that we lose any
+"identity" of a process, so par values in outputs don't have a
+single location in memory. This means we have to use a pointer to a
+list of processes.
+
+A possible solution is to change the layout of memory as follows.
+length of name map 
+: (name : pointer)+ 
+: (length of dpnds of name 
+   : length of prdcts of name 
+   : dpnds of name 
+   : prdcts of name)+ 
+: pointer to next table entry
+
+Then a pointer to a table entry becomes a pointer to a process.
+\begin{code}
 loadDpnd :: [Word] -> ((Maybe (Name RhoProcess)), [(Name RhoProcess)]) -> [Word]
 loadDpnd acc (mx,parents) = acc DL.++ [(Word (prntlSz + 1))] DL.++ [(Word vn)] DL.++ prnts
   where prntlSz = (H.fromIntegral (length parents))
