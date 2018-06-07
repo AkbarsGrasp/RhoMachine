@@ -464,8 +464,11 @@ toBits x = [1] H.++ l
 -- instance Nominal Sign where
 --   code p = Sign { mark = (sign p), name = Code p }
 
+procToNumber :: RhoProcess -> (Unsigned 64)
+procToNumber p = (toNumber (procToIntegerList p))
+
 instance Show (Name RhoProcess) where
-  show (Code p) = "@" H.++ (show (toNumber (procToIntegerList p)))
+  show (Code p) = "@" H.++ (show (procToNumber p))
 
 \end{code}
 
@@ -531,6 +534,7 @@ inform x@(Code px) acc ((u,dpnds,prods):rs) =
   then let (acc',rs') = (inform x acc rs) in (([(u,dpnds,prods)] H.++ acc'), rs')
   else let (acc',rs') = (inform x acc rs) in (acc', [(u,dpnds,prods)] H.++ rs')                  
 
+-- to do: products should have parents too!
 shred :: RhoProcess -> [(Name RhoProcess)] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])]
 
 shred (Reflect Stop) parents rspace = rspace
@@ -593,19 +597,30 @@ reduce (t@(x,dpnds,prdcts) : rspace) = rspace' H.++ (reduce rspace)
 \begin{code}
 newtype Word = Word (Unsigned 64) deriving Show
 
-loadDpnds :: [((Maybe (Name RhoProcess)), [(Name RhoProcess)])] -> (Unsigned 64) -> [Word]
-loadDpnds _ _ = [Word 0]
+-- To do: this is still only an approximation as we need to put in a *pointer* rather than procToNumber
+loadDpnd :: [Word] -> ((Maybe (Name RhoProcess)), [(Name RhoProcess)]) -> [Word]
+loadDpnd acc (mx,parents) = acc DL.++ [(Word (prntlSz + 1))] DL.++ [(Word vn)] DL.++ prnts
+  where prntlSz = (H.fromIntegral (length parents))
+        prnts   = (DL.map (\(Code p) -> (Word (procToNumber p))) parents)        
+        vn      = (case mx of (Just (Code x)) -> ((procToNumber x) + 1); Nothing -> 0)
 
-loadPrdcts :: [RhoProcess] -> (Unsigned 64) -> (Unsigned 64) -> [Word]
-loadPrdcts _ _ _ = [Word 0]
+loadDpnds :: [((Maybe (Name RhoProcess)), [(Name RhoProcess)])] -> [Word]
+loadDpnds dpnds = (DL.foldl loadDpnd [] dpnds)         
 
-toRAM :: [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> [((Name RhoProcess),(Unsigned 64))] -> (Unsigned 64) -> [Word] -> ([((Name RhoProcess),(Unsigned 64))],(Unsigned 64),[Word])
-toRAM [] nameAddrMap nextIndex ram  = (nameAddrMap,nextIndex,ram)
-toRAM ((x,dpnds,prdcts):tpls) nameAddrMap nextIndex ram = (nameAddrMap', (nextIndex' + 1), ram')
-  where dpndOffset :: (Unsigned 64) = H.fromIntegral (length dpnds)
-        prdctOffset :: (Unsigned 64) = H.fromIntegral (length prdcts)
-        nextIndex' :: (Unsigned 64) = (nextIndex + dpndOffset + prdctOffset + 2)
-        nameAddrMap' = (nameAddrMap DL.++ [(x,nextIndex)])
-        ram' = ram DL.++ [(Word nextIndex)] DL.++ (loadDpnds dpnds nextIndex) DL.++ (loadPrdcts prdcts dpndOffset nextIndex)
+loadPrdcts :: [RhoProcess] -> [Word]
+loadPrdcts ps = (DL.map (\p -> (Word (procToNumber p))) ps)
+
+rcrdToRAM :: ([((Name RhoProcess),(Unsigned 64))],[Word]) -> ((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess]) -> ([((Name RhoProcess),(Unsigned 64))],[Word])
+rcrdToRAM  (nameAddrMap, ram) (x,dpnds,prdcts) = (nameAddrMap', ram')
+  where dpndLn       = H.fromIntegral (length dpnds)
+        prdctsLn     = H.fromIntegral (length prdcts)
+        nIdx         = H.fromIntegral ((length ram) + 1)
+        nameAddrMap' = (nameAddrMap DL.++ [(x,nIdx)])
+        ram' = ram DL.++ [(Word dpndLn),(Word prdctsLn)] DL.++ (loadDpnds dpnds) DL.++ (loadPrdcts prdcts)
+
+tblToRAM :: [((Name RhoProcess), [((Maybe (Name RhoProcess)),[(Name RhoProcess)])],[RhoProcess])] -> ([((Name RhoProcess),(Unsigned 64))],[Word])
+
+tblToRAM rspace = (DL.foldl rcrdToRAM ([],[]) rspace)
+
     
 \end{code}
